@@ -1,0 +1,60 @@
+# End-to-end stack: the real production image plus a throwaway Playwright runner.
+#
+# Run with test/run-e2e.sh, or directly:
+#   docker compose -f test/docker-compose.test.yml up --build \
+#     --abort-on-container-exit --exit-code-from playwright
+name: finally-e2e
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: finally:e2e
+    # Set here rather than via .env: litellm's import calls load_dotenv(), so a
+    # mounted .env could silently re-leak real values over the test config.
+    environment:
+      LLM_MOCK: "true"
+      OPENROUTER_API_KEY: ""
+      MASSIVE_API_KEY: ""
+      FINALLY_DB_PATH: /app/db/finally.db
+    # tmpfs, not a named volume: every run starts from a lazily-seeded database,
+    # so the $10,000 fresh-start assertions stay reproducible.
+    tmpfs:
+      - /app/db
+    ports:
+      - "8100:8000"
+    # Chrome's HSTS preload list contains the `app` gTLD, and the bare service
+    # name "app" matches it — http://app:8000 gets forced to https and the
+    # browser fails with ERR_SSL_PROTOCOL_ERROR. Browse via this alias instead.
+    networks:
+      default:
+        aliases:
+          - finally-app
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health').read()
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  playwright:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      E2E_BASE_URL: http://finally-app:8000
+      CI: "true"
+    # Mount sources only — node_modules and browsers stay baked into the image.
+    volumes:
+      - ./specs:/e2e/specs:ro
+      - ./playwright.config.ts:/e2e/playwright.config.ts:ro
+      - ./artifacts:/e2e/artifacts
+    command: ["npx", "playwright", "test"]

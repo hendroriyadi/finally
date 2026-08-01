@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --color-base: #0d1117;
+  --color-panel: #121821;
+  --color-raised: #1a1a2e;
+  --color-edge: #263041;
+  --color-edge-soft: #1d2531;
+  --color-ink: #c9d5e3;
+  --color-slate: #7d8b9e;
+  --color-accent: #ecad0a;
+  --color-primary: #209dd7;
+  --color-secondary: #753991;
+  --color-up: #26d07c;
+  --color-down: #ff4d5e;
+
+  --font-mono: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-base);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-edge);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #35415a;
+}
+
+/* Price flash: applied for ~500ms on tick, then removed. */
+.flash {
+  transition: background-color 480ms ease-out, color 480ms ease-out;
+}
+.flash-up {
+  background-color: color-mix(in srgb, var(--color-up) 26%, transparent);
+  color: var(--color-up);
+  transition: none;
+}
+.flash-down {
+  background-color: color-mix(in srgb, var(--color-down) 26%, transparent);
+  color: var(--color-down);
+  transition: none;
+}
+
+.panel-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-slate);
+}
+
+.grid-rule {
+  background-image: linear-gradient(
+    var(--color-edge-soft) 1px,
+    transparent 1px
+  );
+  background-size: 100% 24px;
+}

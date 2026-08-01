@@ -1,0 +1,16 @@
+# Browser dependencies live here, never in the production image.
+FROM mcr.microsoft.com/playwright:v1.62.1-noble
+
+WORKDIR /e2e
+
+COPY package.json package-lock.json* ./
+RUN if [ -f package-lock.json ]; then \
+      npm ci --no-audit --no-fund; \
+    else \
+      npm install --no-audit --no-fund; \
+    fi
+
+COPY tsconfig.json playwright.config.ts ./
+COPY specs ./specs
+
+CMD ["npx", "playwright", "test"]
