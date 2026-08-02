@@ -1,0 +1,76 @@
+"""SQLite connection factory: WAL mode, busy_timeout, and the asyncio.to_thread seam.
+
+Every database access in this codebase goes through ``run_db()``. There is no
+shared, long-lived connection anywhere — each call opens a short-lived
+``sqlite3.Connection`` on a worker thread, operates, commits, and closes.
+stdlib ``sqlite3.Connection`` objects are not safe to share across threads,
+and at this app's single-user scale the per-call connection-open overhead is
+negligible.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import sqlite3
+from collections.abc import Callable
+from pathlib import Path
+from typing import TypeVar
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_USER_ID = "default"
+
+# parents[3] from backend/app/db/connection.py is the repository root, whose
+# db/ directory is the runtime volume mount — deliberately distinct from this
+# package directory (backend/app/db/), which only holds the schema DDL.
+DEFAULT_DB_PATH = Path(__file__).resolve().parents[3] / "db" / "finally.db"
+
+T = TypeVar("T")
+
+
+def get_db_path() -> Path:
+    """Return the SQLite database path, honoring FINALLY_DB_PATH when set.
+
+    Ensures the parent directory exists so a fresh checkout (or a test's
+    tmp_path) never fails to open the database for lack of a directory.
+    """
+    raw = os.environ.get("FINALLY_DB_PATH", "").strip()
+    path = Path(raw) if raw else DEFAULT_DB_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def connect() -> sqlite3.Connection:
+    """Open a new SQLite connection with WAL mode and busy_timeout configured.
+
+    Both pragmas are (re)issued on every open: journal_mode=WAL persists at
+    the database-file level once set, but busy_timeout is a per-connection
+    setting that must be reissued every time a connection is opened.
+    """
+    conn = sqlite3.connect(get_db_path())
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+async def run_db(fn: Callable[[sqlite3.Connection], T]) -> T:
+    """Run `fn` against a fresh connection on a worker thread, then commit and close.
+
+    This is the only seam through which the rest of the codebase touches
+    SQLite. `fn` receives an open, WAL-mode connection with busy_timeout set,
+    and its return value is passed back to the caller unchanged.
+    """
+
+    def _run() -> T:
+        conn = connect()
+        try:
+            result = fn(conn)
+            conn.commit()
+            return result
+        finally:
+            conn.close()
+
+    return await asyncio.to_thread(_run)
