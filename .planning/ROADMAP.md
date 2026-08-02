@@ -31,8 +31,16 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Each watchlist row shows daily change % and a sparkline that fills in progressively from prices received since page load
   4. User can add and remove tickers; the change survives a page refresh and a backend restart, and a newly added ticker starts streaming prices
   5. If the price stream drops, prices resume on their own without a manual refresh
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Backend skeleton: repo hygiene, WAL SQLite lazy-init, FastAPI app, watchlist REST + SSE mounted (wave 1)
+- [ ] 01-02-PLAN.md — Next.js static-export scaffold, Tailwind v4 dark shell, watchlist grid from the API (wave 2)
+- [ ] 01-03-PLAN.md — Live SSE stream: price flash, session change %, sparklines, connection-status dot (wave 3)
+- [ ] 01-04-PLAN.md — Editable watchlist: add-ticker form and per-row remove control with full state coverage (wave 4)
+
 **UI hint**: yes
+**Walking skeleton**: `01-SKELETON.md`
 
 ### Phase 2: Manual Trading
 **Goal**: A user can buy and sell shares at live prices and watch cash, positions, and total portfolio value update instantly
@@ -95,7 +103,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Market Terminal | 0/TBD | Not started | - |
+| 1. Live Market Terminal | 0/4 | Planned | - |
 | 2. Manual Trading | 0/TBD | Not started | - |
 | 3. Portfolio Visualization | 0/TBD | Not started | - |
 | 4. AI Copilot | 0/TBD | Not started | - |
