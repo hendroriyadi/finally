@@ -9,13 +9,13 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 
 ### Database
 
-- [ ] **DB-01**: System persists user cash balance, watchlist, positions, trades, portfolio snapshots, and chat history in SQLite
-- [ ] **DB-02**: Database schema and seed data are lazily initialized on startup if missing (no manual migration step)
-- [ ] **DB-03**: SQLite runs in WAL mode with `busy_timeout` set to support safe concurrent writers (trade endpoint, chat endpoint, snapshot background task)
+- [x] **DB-01**: System persists user cash balance, watchlist, positions, trades, portfolio snapshots, and chat history in SQLite
+- [x] **DB-02**: Database schema and seed data are lazily initialized on startup if missing (no manual migration step)
+- [x] **DB-03**: SQLite runs in WAL mode with `busy_timeout` set to support safe concurrent writers (trade endpoint, chat endpoint, snapshot background task)
 
 ### Streaming
 
-- [ ] **STREAM-01**: User's browser receives live price updates via SSE at `/api/stream/prices`, sourced from the existing price cache
+- [x] **STREAM-01**: User's browser receives live price updates via SSE at `/api/stream/prices`, sourced from the existing price cache
 - [ ] **STREAM-02**: Frontend auto-reconnects on SSE disconnect using `EventSource`'s native retry behavior
 
 ### Portfolio
@@ -31,9 +31,9 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 
 ### Watchlist
 
-- [ ] **WATCH-01**: User sees a default watchlist of 10 tickers (AAPL, GOOGL, MSFT, AMZN, TSLA, NVDA, META, JPM, V, NFLX) on first launch
-- [ ] **WATCH-02**: User can add a ticker to the watchlist
-- [ ] **WATCH-03**: User can remove a ticker from the watchlist
+- [x] **WATCH-01**: User sees a default watchlist of 10 tickers (AAPL, GOOGL, MSFT, AMZN, TSLA, NVDA, META, JPM, V, NFLX) on first launch
+- [x] **WATCH-02**: User can add a ticker to the watchlist
+- [x] **WATCH-03**: User can remove a ticker from the watchlist
 - [ ] **WATCH-04**: Watchlist grid shows live price, daily change %, and a sparkline mini-chart accumulated from the SSE stream since page load
 - [ ] **WATCH-05**: Price changes trigger a brief green/red flash animation that fades over ~500ms
 
@@ -92,10 +92,10 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | Phase 1 | Pending |
-| DB-02 | Phase 1 | Pending |
-| DB-03 | Phase 1 | Pending |
-| STREAM-01 | Phase 1 | Pending |
+| DB-01 | Phase 1 | Complete |
+| DB-02 | Phase 1 | Complete |
+| DB-03 | Phase 1 | Complete |
+| STREAM-01 | Phase 1 | Complete |
 | STREAM-02 | Phase 1 | Pending |
 | PORT-01 | Phase 2 | Pending |
 | PORT-02 | Phase 2 | Pending |
@@ -105,9 +105,9 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | PORT-06 | Phase 3 | Pending |
 | PORT-07 | Phase 3 | Pending |
 | PORT-08 | Phase 3 | Pending |
-| WATCH-01 | Phase 1 | Pending |
-| WATCH-02 | Phase 1 | Pending |
-| WATCH-03 | Phase 1 | Pending |
+| WATCH-01 | Phase 1 | Complete |
+| WATCH-02 | Phase 1 | Complete |
+| WATCH-03 | Phase 1 | Complete |
 | WATCH-04 | Phase 1 | Pending |
 | WATCH-05 | Phase 1 | Pending |
 | CHAT-01 | Phase 4 | Pending |
@@ -131,6 +131,7 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | TEST-04 | Phase 5 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 37 total (recounted 2026-08-02 during roadmap creation — the original "36" was an arithmetic slip; no requirement was added or removed)
 - Mapped to phases: 37
 - Unmapped: 0 ✓
