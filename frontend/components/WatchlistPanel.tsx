@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchWatchlist } from "@/lib/api";
 import type { WatchlistItem } from "@/lib/types";
 import { usePriceStreamContext } from "./PriceStreamProvider";
+import { AddTickerForm } from "./AddTickerForm";
 import { WatchlistRow } from "./WatchlistRow";
 
 const SKELETON_ROW_COUNT = 10;
@@ -42,10 +43,17 @@ export function WatchlistPanel() {
     };
   }, []);
 
+  function addItem(item: WatchlistItem) {
+    setItems((current) => [...(current ?? []), item]);
+  }
+
   return (
     <section className="rounded-md border border-edge bg-panel">
       <div className="border-b border-edge px-4 py-3">
         <h2 className="text-xl font-semibold leading-tight">Watchlist</h2>
+        <div className="mt-2">
+          <AddTickerForm onAdded={addItem} />
+        </div>
       </div>
 
       <div className="flex items-center border-b border-edge px-2 py-2 text-xs font-semibold leading-tight text-[#8b949e]">
