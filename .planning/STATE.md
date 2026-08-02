@@ -95,6 +95,14 @@ Items acknowledged and carried forward from previous milestone close:
 |----------|------|--------|-------------|
 | *(none)* | | | |
 
+## Deferred Verification
+
+| Phase | State | Resume |
+|-------|-------|--------|
+| 1 | verification_deferred_human | /gsd-verify-work 1 |
+
+Phase 1 verification status is `human_needed`: 0 code-level gaps, 11/11 requirements satisfied, all logic source- and test-verified, but 5 items (flash animation timing, sparkline fill-in, dark-theme visual rendering, add/remove persistence across refresh+restart, SSE auto-resume) require a live browser session that was not exercised in this unattended run (3 consecutive agent stalls/crashes attempting it). Proceeding to Phase 2 on the basis that Phase 2 builds on the independently-tested persistence layer and API contracts, not on the unverified visual behavior. Run `/gsd-verify-work 1` with a real browser session when convenient.
+
 ## Session Continuity
 
 Last session: 2026-08-02T16:59:28.525Z
