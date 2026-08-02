@@ -3,20 +3,23 @@
 import { useEffect, useState } from "react";
 import { fetchWatchlist } from "@/lib/api";
 import type { WatchlistItem } from "@/lib/types";
+import { usePriceStreamContext } from "./PriceStreamProvider";
 import { WatchlistRow } from "./WatchlistRow";
 
 const SKELETON_ROW_COUNT = 10;
 
 /**
  * Watchlist grid: owns the fetch-on-mount lifecycle and every grid state
- * (loading skeleton, error, empty, populated, bounded-overflow scroll).
- * Price/change/sparkline are left unwired here — the SSE stream that fills
- * them arrives in Plan 03; until then every row shows the em-dash
- * placeholder specified by the UI-SPEC.
+ * (loading skeleton, error, empty, populated, bounded-overflow scroll). Price,
+ * change %, and sparkline data come from the shared SSE stream context, not a
+ * re-fetch of the watchlist — the REST list and the price stream are separate
+ * concerns, and a ticker present in the stream but not in the watchlist is
+ * never rendered.
  */
 export function WatchlistPanel() {
   const [items, setItems] = useState<WatchlistItem[] | null>(null);
   const [error, setError] = useState(false);
+  const { prices, history, baselines } = usePriceStreamContext();
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +76,23 @@ export function WatchlistPanel() {
             </p>
           </div>
         ) : (
-          items.map((item) => <WatchlistRow key={item.ticker} ticker={item.ticker} />)
+          items.map((item) => {
+            const baseline = baselines[item.ticker];
+            const price = prices[item.ticker]?.price;
+            const changePercent =
+              baseline !== undefined && price !== undefined ? ((price - baseline) / baseline) * 100 : undefined;
+
+            return (
+              <WatchlistRow
+                key={item.ticker}
+                ticker={item.ticker}
+                price={price}
+                changePercent={changePercent}
+                direction={prices[item.ticker]?.direction}
+                points={history[item.ticker] ?? []}
+              />
+            );
+          })
         )}
       </div>
     </section>
