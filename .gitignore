@@ -16,6 +16,11 @@ eggs/
 .eggs/
 lib/
 lib64/
+# Python's generic `lib/` pattern above unintentionally matches frontend/lib/,
+# which holds hand-written TypeScript source (lib/api.ts, lib/types.ts), not
+# a Python virtualenv/build directory. Un-ignore it specifically so those
+# files can be tracked.
+!/frontend/lib/
 parts/
 sdist/
 var/
