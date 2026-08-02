@@ -11,10 +11,15 @@ from __future__ import annotations
 import logging
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from app.db.watchlist import list_watchlist
+from app.db.watchlist import (
+    add_watchlist_ticker,
+    count_watchlist,
+    list_watchlist,
+    remove_watchlist_ticker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,5 +65,34 @@ def create_watchlist_router() -> APIRouter:
     async def get_watchlist() -> WatchlistResponse:
         tickers = await list_watchlist()
         return WatchlistResponse(tickers=[WatchlistItem(**row) for row in tickers])
+
+    @router.post("", response_model=WatchlistItem, status_code=201)
+    async def add_ticker(body: AddTickerRequest, request: Request) -> WatchlistItem:
+        ticker = normalize_ticker(body.ticker)
+
+        if await count_watchlist() >= MAX_WATCHLIST_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Watchlist already at the maximum of {MAX_WATCHLIST_SIZE} tickers",
+            )
+
+        created = await add_watchlist_ticker(ticker)
+        if created is None:
+            raise HTTPException(status_code=409, detail=f"{ticker} is already on the watchlist")
+
+        # Persist first, then track — a database failure never leaves the
+        # stream tracking a ticker the database does not know about.
+        await request.app.state.market_source.add_ticker(ticker)
+        return WatchlistItem(**created)
+
+    @router.delete("/{ticker}", status_code=204)
+    async def remove_ticker(ticker: str, request: Request) -> None:
+        normalized = normalize_ticker(ticker)
+
+        removed = await remove_watchlist_ticker(normalized)
+        if not removed:
+            raise HTTPException(status_code=404, detail=f"{normalized} is not on the watchlist")
+
+        await request.app.state.market_source.remove_ticker(normalized)
 
     return router
