@@ -33,6 +33,30 @@ def _install_spy(client) -> _SpyMarketSource:
     return spy
 
 
+class _FailingMarketSource:
+    """Wraps a real MarketDataSource, raising instead of delegating for
+    whichever of add_ticker/remove_ticker is configured to fail — used to
+    exercise the WR-02 compensation paths."""
+
+    def __init__(self, wrapped, *, fail_add: bool = False, fail_remove: bool = False):
+        self._wrapped = wrapped
+        self._fail_add = fail_add
+        self._fail_remove = fail_remove
+
+    async def add_ticker(self, ticker: str) -> None:
+        if self._fail_add:
+            raise RuntimeError("simulated market-source failure")
+        await self._wrapped.add_ticker(ticker)
+
+    async def remove_ticker(self, ticker: str) -> None:
+        if self._fail_remove:
+            raise RuntimeError("simulated market-source failure")
+        await self._wrapped.remove_ticker(ticker)
+
+    def __getattr__(self, name):
+        return getattr(self._wrapped, name)
+
+
 def test_get_watchlist_returns_seeded_tickers(client):
     response = client.get("/api/watchlist")
     assert response.status_code == 200
@@ -92,6 +116,34 @@ async def test_add_ticker_at_cap_returns_400_and_writes_nothing(client, temp_db)
     assert after == before
 
 
+def test_add_ticker_rolls_back_watchlist_row_when_market_source_fails(client, temp_db):
+    """WR-02: a market-source failure after the DB insert must not leave a
+    ticker permanently in the watchlist with no live price feed."""
+    client.app.state.market_source = _FailingMarketSource(
+        client.app.state.market_source, fail_add=True
+    )
+
+    response = client.post("/api/watchlist", json={"ticker": "PYPL"})
+    assert response.status_code == 502
+
+    tickers = [item["ticker"] for item in client.get("/api/watchlist").json()["tickers"]]
+    assert "PYPL" not in tickers
+
+
+def test_remove_ticker_restores_watchlist_row_when_market_source_fails(client, temp_db):
+    """WR-02: a market-source failure after the DB delete must not leave the
+    watchlist claiming a ticker is gone while it is still streaming."""
+    client.app.state.market_source = _FailingMarketSource(
+        client.app.state.market_source, fail_remove=True
+    )
+
+    response = client.delete("/api/watchlist/AAPL")
+    assert response.status_code == 502
+
+    tickers = [item["ticker"] for item in client.get("/api/watchlist").json()["tickers"]]
+    assert "AAPL" in tickers
+
+
 def test_remove_ticker_persists_and_calls_source(client):
     spy = _install_spy(client)
 
@@ -109,5 +161,22 @@ def test_remove_unknown_ticker_returns_404(client):
 
 
 def test_remove_malformed_ticker_returns_400_before_any_query(client):
-    response = client.delete("/api/watchlist/DROP-TABLE-WATCHLIST-TOO-LONG")
+    # Invalid shape (contains a space) but within the path length bound, so
+    # this exercises TICKER_PATTERN rejection in normalize_ticker rather than
+    # the Path(max_length=10) validator below.
+    response = client.delete("/api/watchlist/DROP TBL")
     assert response.status_code == 400
+
+
+def test_remove_ticker_exceeding_max_length_returns_422_before_any_query(client):
+    # IN-03: the DELETE path parameter now declares the same length bound
+    # (min_length=1, max_length=10) as AddTickerRequest.ticker's Field, for
+    # symmetry between the two write paths. FastAPI/Pydantic enforces this
+    # at the routing layer before normalize_ticker ever runs, so an
+    # over-length path segment is a 422 (request shape rejected), distinct
+    # from TICKER_PATTERN's 400 (value shape rejected after normalization).
+    spy = _install_spy(client)
+
+    response = client.delete("/api/watchlist/DROP-TABLE-WATCHLIST-TOO-LONG")
+    assert response.status_code == 422
+    assert spy.removed == []

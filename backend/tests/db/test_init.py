@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from app.db.connection import connect
 from app.db.init import init_db
 from app.market.seed_prices import SEED_PRICES
@@ -67,3 +69,25 @@ async def test_init_is_idempotent(temp_db):
 
     assert users_after == users_before == 1
     assert watchlist_after == watchlist_before == len(SEED_PRICES)
+
+
+async def test_concurrent_init_db_calls_do_not_raise(temp_db):
+    """WR-04: init_db()'s own doc comment claims it is safe to call on every
+    startup. Before the INSERT OR IGNORE fix, two concurrent calls against
+    the same fresh database file could both observe `existing == 0` and
+    both attempt the seed INSERT, and the loser would raise an unhandled
+    `sqlite3.IntegrityError` on the `users_profile` primary key. Running
+    several `init_db()` calls concurrently (via asyncio.to_thread's real
+    thread pool, hitting the same on-disk file) must not raise, and must
+    leave exactly one seeded copy of the data."""
+    await asyncio.gather(*(init_db() for _ in range(8)))
+
+    conn = connect()
+    try:
+        users = conn.execute("SELECT COUNT(*) FROM users_profile").fetchone()[0]
+        watchlist = conn.execute("SELECT COUNT(*) FROM watchlist").fetchone()[0]
+    finally:
+        conn.close()
+
+    assert users == 1
+    assert watchlist == len(SEED_PRICES)

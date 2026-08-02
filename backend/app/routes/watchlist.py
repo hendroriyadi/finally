@@ -11,19 +11,22 @@ from __future__ import annotations
 import logging
 import re
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel, Field
 
 from app.db.watchlist import (
+    WatchlistCapReachedError,
     add_watchlist_ticker,
-    count_watchlist,
     list_watchlist,
     remove_watchlist_ticker,
 )
 
 logger = logging.getLogger(__name__)
 
-TICKER_PATTERN = re.compile(r"^[A-Z0-9.\-]{1,10}$")
+# Requires a leading alphanumeric so bare punctuation ("-", ".", "--") can't
+# pass as a "valid" ticker shape (IN-02); still permits the trailing
+# `.`/`-` characters real tickers use (e.g. "BRK.B").
+TICKER_PATTERN = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 MAX_WATCHLIST_SIZE = 50
 
 
@@ -70,29 +73,63 @@ def create_watchlist_router() -> APIRouter:
     async def add_ticker(body: AddTickerRequest, request: Request) -> WatchlistItem:
         ticker = normalize_ticker(body.ticker)
 
-        if await count_watchlist() >= MAX_WATCHLIST_SIZE:
+        # The size cap and the duplicate check are both enforced inside the
+        # same atomic INSERT as add_watchlist_ticker's own statement (WR-01)
+        # — a separate `count_watchlist()` read-then-insert here would be a
+        # check-then-act race between concurrent POSTs.
+        try:
+            created = await add_watchlist_ticker(ticker, max_size=MAX_WATCHLIST_SIZE)
+        except WatchlistCapReachedError:
             raise HTTPException(
                 status_code=400,
                 detail=f"Watchlist already at the maximum of {MAX_WATCHLIST_SIZE} tickers",
-            )
-
-        created = await add_watchlist_ticker(ticker)
+            ) from None
         if created is None:
             raise HTTPException(status_code=409, detail=f"{ticker} is already on the watchlist")
 
-        # Persist first, then track — a database failure never leaves the
-        # stream tracking a ticker the database does not know about.
-        await request.app.state.market_source.add_ticker(ticker)
+        # Persist first, then track — but if the market-source call fails,
+        # compensate by removing the row we just inserted so the database
+        # and the live stream never diverge (WR-02): without this, a
+        # downstream failure here would leave `ticker` permanently in the
+        # watchlist with no price feed until the process restarts.
+        try:
+            await request.app.state.market_source.add_ticker(ticker)
+        except Exception:
+            logger.exception(
+                "market_source.add_ticker(%r) failed after watchlist insert; rolling back", ticker
+            )
+            await remove_watchlist_ticker(ticker)
+            raise HTTPException(
+                status_code=502, detail=f"Could not start streaming {ticker}; watchlist not updated"
+            ) from None
         return WatchlistItem(**created)
 
     @router.delete("/{ticker}", status_code=204)
-    async def remove_ticker(ticker: str, request: Request) -> None:
+    async def remove_ticker(
+        request: Request, ticker: str = Path(min_length=1, max_length=10)
+    ) -> None:
         normalized = normalize_ticker(ticker)
 
         removed = await remove_watchlist_ticker(normalized)
         if not removed:
             raise HTTPException(status_code=404, detail=f"{normalized} is not on the watchlist")
 
-        await request.app.state.market_source.remove_ticker(normalized)
+        # Mirror image of the add-path compensation above (WR-02): if the
+        # market-source removal fails after the DB delete already committed,
+        # re-add the watchlist row (uncapped — the cap only gates net-new
+        # additions, not restoring a row we just had) so the DB and the
+        # live stream don't diverge.
+        try:
+            await request.app.state.market_source.remove_ticker(normalized)
+        except Exception:
+            logger.exception(
+                "market_source.remove_ticker(%r) failed after watchlist delete; re-adding",
+                normalized,
+            )
+            await add_watchlist_ticker(normalized)
+            raise HTTPException(
+                status_code=502,
+                detail=f"Could not stop streaming {normalized}; watchlist not updated",
+            ) from None
 
     return router
