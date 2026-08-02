@@ -1,7 +1,7 @@
 ---
 phase: 1
 slug: live-market-terminal
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-08-02
@@ -87,6 +87,18 @@ The connection-status dot's three colors are intentionally the same hexes as Pos
 
 ---
 
+## Visual Hierarchy
+
+Primary focal point: the **watchlist grid**, specifically the live **price cell** in each row — emphasized via Display type (16px/600), `tabular-nums` column alignment, and the green/red flash animation on change. This is the single most-scanned surface in this phase.
+
+Secondary focal points: the **add-ticker input/button** (framed by the Accent focus ring and Submit-purple button) and the **connection-status dot** (small but semantically loaded — its color is the user's only signal that data is live).
+
+Tertiary: watchlist column headers (Label type, 12px/600), sparklines (supporting context for the price cell, not a standalone draw), and the app title/header chrome.
+
+Nothing in this phase competes with the watchlist grid for attention — no trade bar, portfolio panel, or chat surface exists yet (per phase scope in `01-CONTEXT.md`), so the layout stays single-panel and the grid can occupy the visual center without contest.
+
+---
+
 ## Copywriting Contract
 
 | Element | Copy |
@@ -153,11 +165,11 @@ Applicable state considerations resolved: 14 covered, 2 backstop, 0 unresolved
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS (flag resolved — Visual Hierarchy section added above)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-08-02
