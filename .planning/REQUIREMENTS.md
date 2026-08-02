@@ -92,49 +92,59 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | TBD | Pending |
-| DB-02 | TBD | Pending |
-| DB-03 | TBD | Pending |
-| STREAM-01 | TBD | Pending |
-| STREAM-02 | TBD | Pending |
-| PORT-01 | TBD | Pending |
-| PORT-02 | TBD | Pending |
-| PORT-03 | TBD | Pending |
-| PORT-04 | TBD | Pending |
-| PORT-05 | TBD | Pending |
-| PORT-06 | TBD | Pending |
-| PORT-07 | TBD | Pending |
-| PORT-08 | TBD | Pending |
-| WATCH-01 | TBD | Pending |
-| WATCH-02 | TBD | Pending |
-| WATCH-03 | TBD | Pending |
-| WATCH-04 | TBD | Pending |
-| WATCH-05 | TBD | Pending |
-| CHAT-01 | TBD | Pending |
-| CHAT-02 | TBD | Pending |
-| CHAT-03 | TBD | Pending |
-| CHAT-04 | TBD | Pending |
-| CHAT-05 | TBD | Pending |
-| CHAT-06 | TBD | Pending |
-| CHAT-07 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
-| UI-04 | TBD | Pending |
-| UI-05 | TBD | Pending |
-| DEPLOY-01 | TBD | Pending |
-| DEPLOY-02 | TBD | Pending |
-| DEPLOY-03 | TBD | Pending |
-| TEST-01 | TBD | Pending |
-| TEST-02 | TBD | Pending |
-| TEST-03 | TBD | Pending |
-| TEST-04 | TBD | Pending |
+| DB-01 | Phase 1 | Pending |
+| DB-02 | Phase 1 | Pending |
+| DB-03 | Phase 1 | Pending |
+| STREAM-01 | Phase 1 | Pending |
+| STREAM-02 | Phase 1 | Pending |
+| PORT-01 | Phase 2 | Pending |
+| PORT-02 | Phase 2 | Pending |
+| PORT-03 | Phase 2 | Pending |
+| PORT-04 | Phase 2 | Pending |
+| PORT-05 | Phase 2 | Pending |
+| PORT-06 | Phase 3 | Pending |
+| PORT-07 | Phase 3 | Pending |
+| PORT-08 | Phase 3 | Pending |
+| WATCH-01 | Phase 1 | Pending |
+| WATCH-02 | Phase 1 | Pending |
+| WATCH-03 | Phase 1 | Pending |
+| WATCH-04 | Phase 1 | Pending |
+| WATCH-05 | Phase 1 | Pending |
+| CHAT-01 | Phase 4 | Pending |
+| CHAT-02 | Phase 4 | Pending |
+| CHAT-03 | Phase 4 | Pending |
+| CHAT-04 | Phase 4 | Pending |
+| CHAT-05 | Phase 4 | Pending |
+| CHAT-06 | Phase 4 | Pending |
+| CHAT-07 | Phase 4 | Pending |
+| UI-01 | Phase 1 | Pending |
+| UI-02 | Phase 3 | Pending |
+| UI-03 | Phase 2 | Pending |
+| UI-04 | Phase 4 | Pending |
+| UI-05 | Phase 2 | Pending |
+| DEPLOY-01 | Phase 5 | Pending |
+| DEPLOY-02 | Phase 5 | Pending |
+| DEPLOY-03 | Phase 5 | Pending |
+| TEST-01 | Phase 2 | Pending |
+| TEST-02 | Phase 4 | Pending |
+| TEST-03 | Phase 5 | Pending |
+| TEST-04 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 36 total
-- Mapped to phases: 0 (filled by roadmap creation)
-- Unmapped: 36 ⚠️ (expected — roadmap not yet created)
+- v1 requirements: 37 total (recounted 2026-08-02 during roadmap creation — the original "36" was an arithmetic slip; no requirement was added or removed)
+- Mapped to phases: 37
+- Unmapped: 0 ✓
+
+**By phase:**
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| Phase 1 — Live Market Terminal | DB-01, DB-02, DB-03, STREAM-01, STREAM-02, WATCH-01, WATCH-02, WATCH-03, WATCH-04, WATCH-05, UI-01 | 11 |
+| Phase 2 — Manual Trading | PORT-01, PORT-02, PORT-03, PORT-04, PORT-05, UI-03, UI-05, TEST-01 | 8 |
+| Phase 3 — Portfolio Visualization | PORT-06, PORT-07, PORT-08, UI-02 | 4 |
+| Phase 4 — AI Copilot | CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06, CHAT-07, UI-04, TEST-02 | 9 |
+| Phase 5 — One-Command Ship | DEPLOY-01, DEPLOY-02, DEPLOY-03, TEST-03, TEST-04 | 5 |
 
 ---
 *Requirements defined: 2026-08-01*
-*Last updated: 2026-08-01 after initial definition*
+*Last updated: 2026-08-02 after roadmap creation (phase mappings filled)*
