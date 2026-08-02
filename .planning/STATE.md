@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 1
 current_phase_name: Live Market Terminal
 status: executing
-stopped_at: Completed 01-02-PLAN.md (Next.js terminal shell + watchlist grid)
-last_updated: "2026-08-02T16:25:04.412Z"
+stopped_at: Completed 01-03-PLAN.md (live SSE price stream, flash, sparklines, connection dot)
+last_updated: "2026-08-02T16:34:32.211Z"
 last_activity: 2026-08-02
 last_activity_desc: Completed 01-01-PLAN.md (backend walking skeleton)
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 1 of 5 (Live Market Terminal)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Ready to execute
 Last activity: 2026-08-02 — Completed 01-01-PLAN.md (backend walking skeleton)
 
-Progress: [███░░░░░░░] 25%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [███░░░░░░░] 25%
 |------|----------|-------|-------|
 | Phase 1 P01 | 25min | 3 tasks | 17 files |
 | Phase 1 P02 | 63min | 3 tasks | 16 files |
+| Phase 01 P03 | 22min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,7 @@ Recent decisions affecting current work:
 - [Roadmap]: MVP mode — phases are vertical slices (DB + service + route + UI per capability), not horizontal layers, while still honoring the DB → shared trade service → LLM dependency chain research identified
 - [Roadmap]: LLM chat (Phase 4) deliberately sequenced after manual trading (Phase 2) because CHAT-03 requires reusing the same validated `execute_trade()` path
 - [Phase ?]: 01-01: schema.sql placed at backend/app/db/ (package-internal); SSE mount tests drive the ASGI app directly since httpx's ASGITransport cannot express a mid-stream disconnect against an infinite generator
+- [Phase ?]: 01-03: react-hooks/refs ESLint rule (Next.js 16) forced a ref-accumulate/state-publish shape in useSseStream.ts instead of the plan's literal ref-only + version-counter pattern; CHG% colored by sign of session-baseline percent, not tick-to-tick direction
 
 ### Pending Todos
 
@@ -94,6 +96,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-02T16:25:04.401Z
-Stopped at: Completed 01-02-PLAN.md (Next.js terminal shell + watchlist grid)
+Last session: 2026-08-02T16:34:32.191Z
+Stopped at: Completed 01-03-PLAN.md (live SSE price stream, flash, sparklines, connection dot)
 Resume file: None

@@ -16,7 +16,7 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 ### Streaming
 
 - [x] **STREAM-01**: User's browser receives live price updates via SSE at `/api/stream/prices`, sourced from the existing price cache
-- [ ] **STREAM-02**: Frontend auto-reconnects on SSE disconnect using `EventSource`'s native retry behavior
+- [x] **STREAM-02**: Frontend auto-reconnects on SSE disconnect using `EventSource`'s native retry behavior
 
 ### Portfolio
 
@@ -34,8 +34,8 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 - [x] **WATCH-01**: User sees a default watchlist of 10 tickers (AAPL, GOOGL, MSFT, AMZN, TSLA, NVDA, META, JPM, V, NFLX) on first launch
 - [x] **WATCH-02**: User can add a ticker to the watchlist
 - [x] **WATCH-03**: User can remove a ticker from the watchlist
-- [ ] **WATCH-04**: Watchlist grid shows live price, daily change %, and a sparkline mini-chart accumulated from the SSE stream since page load
-- [ ] **WATCH-05**: Price changes trigger a brief green/red flash animation that fades over ~500ms
+- [x] **WATCH-04**: Watchlist grid shows live price, daily change %, and a sparkline mini-chart accumulated from the SSE stream since page load
+- [x] **WATCH-05**: Price changes trigger a brief green/red flash animation that fades over ~500ms
 
 ### Chat / AI Assistant
 
@@ -96,7 +96,7 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | DB-02 | Phase 1 | Complete |
 | DB-03 | Phase 1 | Complete |
 | STREAM-01 | Phase 1 | Complete |
-| STREAM-02 | Phase 1 | Pending |
+| STREAM-02 | Phase 1 | Complete |
 | PORT-01 | Phase 2 | Pending |
 | PORT-02 | Phase 2 | Pending |
 | PORT-03 | Phase 2 | Pending |
@@ -108,8 +108,8 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | WATCH-01 | Phase 1 | Complete |
 | WATCH-02 | Phase 1 | Complete |
 | WATCH-03 | Phase 1 | Complete |
-| WATCH-04 | Phase 1 | Pending |
-| WATCH-05 | Phase 1 | Pending |
+| WATCH-04 | Phase 1 | Complete |
+| WATCH-05 | Phase 1 | Complete |
 | CHAT-01 | Phase 4 | Pending |
 | CHAT-02 | Phase 4 | Pending |
 | CHAT-03 | Phase 4 | Pending |
