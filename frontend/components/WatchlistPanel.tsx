@@ -5,6 +5,7 @@ import { fetchWatchlist } from "@/lib/api";
 import type { WatchlistItem } from "@/lib/types";
 import { usePriceStreamContext } from "./PriceStreamProvider";
 import { AddTickerForm } from "./AddTickerForm";
+import { RemoveTickerButton } from "./RemoveTickerButton";
 import { WatchlistRow } from "./WatchlistRow";
 
 const SKELETON_ROW_COUNT = 10;
@@ -45,6 +46,10 @@ export function WatchlistPanel() {
 
   function addItem(item: WatchlistItem) {
     setItems((current) => [...(current ?? []), item]);
+  }
+
+  function removeItem(ticker: string) {
+    setItems((current) => (current ?? []).filter((item) => item.ticker !== ticker));
   }
 
   return (
@@ -98,6 +103,7 @@ export function WatchlistPanel() {
                 changePercent={changePercent}
                 direction={prices[item.ticker]?.direction}
                 points={history[item.ticker] ?? []}
+                removeControl={<RemoveTickerButton ticker={item.ticker} onRemoved={removeItem} />}
               />
             );
           })

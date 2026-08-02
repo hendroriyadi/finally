@@ -9,6 +9,7 @@ interface WatchlistRowProps {
   changePercent?: number;
   direction?: "up" | "down" | "flat";
   points: number[];
+  removeControl?: React.ReactNode;
 }
 
 /**
@@ -17,7 +18,7 @@ interface WatchlistRowProps {
  * change/sparkline data arrives, because the em-dash and empty-cell
  * fallbacks below occupy the same layout the populated state does.
  */
-export function WatchlistRow({ ticker, price, changePercent, points }: WatchlistRowProps) {
+export function WatchlistRow({ ticker, price, changePercent, points, removeControl }: WatchlistRowProps) {
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const previousPriceRef = useRef<number | undefined>(undefined);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,6 +78,7 @@ export function WatchlistRow({ ticker, price, changePercent, points }: Watchlist
       <div className="flex h-5 w-[60px] items-center justify-end">
         <Sparkline points={points} />
       </div>
+      <div className="flex w-[60px] items-center justify-end">{removeControl}</div>
     </div>
   );
 }
