@@ -7,7 +7,6 @@ interface WatchlistRowProps {
   ticker: string;
   price?: number;
   changePercent?: number;
-  direction?: "up" | "down" | "flat";
   points: number[];
   removeControl?: React.ReactNode;
 }

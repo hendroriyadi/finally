@@ -36,18 +36,21 @@ export function RemoveTickerButton({ ticker, onRemoved }: RemoveTickerButtonProp
       await removeWatchlistTicker(ticker);
       onRemoved(ticker);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setErrorMessage(`Couldn't remove ${ticker} — try again.`);
-        if (errorTimerRef.current !== null) {
-          clearTimeout(errorTimerRef.current);
-        }
-        errorTimerRef.current = setTimeout(() => {
-          setErrorMessage(null);
-          errorTimerRef.current = null;
-        }, 4000);
-      } else {
-        throw err;
+      if (!(err instanceof ApiError)) {
+        // A non-ApiError failure (e.g. a bare network error) must still
+        // surface to the user — re-throwing here would become an unhandled
+        // promise rejection from this click handler, leaving the button
+        // silently stop spinning with zero feedback (WR-06).
+        console.error("RemoveTickerButton: unexpected error removing ticker", err);
       }
+      setErrorMessage(`Couldn't remove ${ticker} — try again.`);
+      if (errorTimerRef.current !== null) {
+        clearTimeout(errorTimerRef.current);
+      }
+      errorTimerRef.current = setTimeout(() => {
+        setErrorMessage(null);
+        errorTimerRef.current = null;
+      }, 4000);
     } finally {
       setRemoving(false);
     }

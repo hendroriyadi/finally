@@ -50,8 +50,14 @@ export function usePriceStream(url: string): PriceStreamState {
 
     source.onerror = () => {
       // The browser retries on its own per the server's `retry:` directive.
-      // Do not close/reopen here — see module doc comment above.
-      setStatus("reconnecting");
+      // Do not close/reopen here — see module doc comment above. But only
+      // report "reconnecting" while the browser is actually retrying
+      // (readyState === CONNECTING). A CLOSED readyState means the browser
+      // has given up for good (e.g. the initial response wasn't
+      // text/event-stream, or the server sent a non-2xx status) and will
+      // never reconnect on its own — reporting "reconnecting" forever in
+      // that case would be a lie the status dot tells the user (WR-05).
+      setStatus(source.readyState === EventSource.CLOSED ? "disconnected" : "reconnecting");
     };
 
     source.onmessage = (event) => {

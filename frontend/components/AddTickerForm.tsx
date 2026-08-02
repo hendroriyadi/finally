@@ -43,7 +43,14 @@ export function AddTickerForm({ onAdded, disabled }: AddTickerFormProps) {
       if (err instanceof ApiError) {
         setErrorMessage(`Couldn't add ${normalized} — check the symbol and try again.`);
       } else {
-        throw err;
+        // A non-ApiError failure (e.g. a bare network error while offline)
+        // must still surface to the user — re-throwing here would become an
+        // unhandled promise rejection from this async event handler, with
+        // no feedback beyond the button silently stopping its spinner
+        // (WR-06). Log the original error for diagnostics and show the same
+        // user-facing copy as a normal add failure.
+        console.error("AddTickerForm: unexpected error adding ticker", err);
+        setErrorMessage(`Couldn't add ${normalized} — check the symbol and try again.`);
       }
     } finally {
       setSubmitting(false);

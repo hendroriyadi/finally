@@ -101,7 +101,6 @@ export function WatchlistPanel() {
                 ticker={item.ticker}
                 price={price}
                 changePercent={changePercent}
-                direction={prices[item.ticker]?.direction}
                 points={history[item.ticker] ?? []}
                 removeControl={<RemoveTickerButton ticker={item.ticker} onRemoved={removeItem} />}
               />
