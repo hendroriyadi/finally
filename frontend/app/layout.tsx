@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AppHeader } from "@/components/AppHeader";
+import { PriceStreamProvider } from "@/components/PriceStreamProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <body className="flex h-full min-h-screen flex-col bg-canvas font-sans antialiased">
-        <AppHeader />
-        {children}
+        <PriceStreamProvider>
+          <AppHeader />
+          {children}
+        </PriceStreamProvider>
       </body>
     </html>
   );
