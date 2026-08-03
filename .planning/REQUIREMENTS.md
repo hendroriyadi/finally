@@ -51,7 +51,7 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 
 - [ ] **UI-01**: User sees a dark, data-dense trading-terminal layout on first launch with no login/signup required
 - [ ] **UI-02**: Clicking a ticker in the watchlist selects it for the main detail chart
-- [ ] **UI-03**: Header shows live portfolio total value, cash balance, and a connection-status indicator (green/yellow/red dot)
+- [x] **UI-03**: Header shows live portfolio total value, cash balance, and a connection-status indicator (green/yellow/red dot)
 - [ ] **UI-04**: AI chat panel is docked/collapsible with message input, scrolling history, and a loading indicator while waiting for a response
 - [x] **UI-05**: Trade bar allows entering ticker, quantity, and buy/sell with instant market-order execution
 
@@ -119,7 +119,7 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | CHAT-07 | Phase 4 | Pending |
 | UI-01 | Phase 1 | Pending |
 | UI-02 | Phase 3 | Pending |
-| UI-03 | Phase 2 | Pending |
+| UI-03 | Phase 2 | Complete |
 | UI-04 | Phase 4 | Pending |
 | UI-05 | Phase 2 | Complete |
 | DEPLOY-01 | Phase 5 | Pending |
