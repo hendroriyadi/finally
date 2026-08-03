@@ -63,7 +63,7 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 
 ### Testing
 
-- [ ] **TEST-01**: Backend unit tests cover portfolio trade execution logic, P&L calculations, and edge cases (insufficient cash/shares, fractional shares)
+- [x] **TEST-01**: Backend unit tests cover portfolio trade execution logic, P&L calculations, and edge cases (insufficient cash/shares, fractional shares)
 - [ ] **TEST-02**: Backend unit tests cover LLM structured-output parsing, including malformed/invalid responses
 - [ ] **TEST-03**: Frontend component tests cover price flash animation, watchlist CRUD, portfolio display calculations, and chat message rendering
 - [ ] **TEST-04**: Playwright E2E suite (run with `LLM_MOCK=true`) covers: fresh start, watchlist add/remove, buy/sell flow, portfolio visualization, AI chat with trade execution, and SSE reconnection
@@ -125,7 +125,7 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | DEPLOY-01 | Phase 5 | Pending |
 | DEPLOY-02 | Phase 5 | Pending |
 | DEPLOY-03 | Phase 5 | Pending |
-| TEST-01 | Phase 2 | Pending |
+| TEST-01 | Phase 2 | Complete |
 | TEST-02 | Phase 4 | Pending |
 | TEST-03 | Phase 5 | Pending |
 | TEST-04 | Phase 5 | Pending |

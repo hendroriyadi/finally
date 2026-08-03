@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 1
-current_phase_name: Live Market Terminal
-status: verifying
-stopped_at: Completed 02-01-PLAN.md (trade engine + portfolio API)
-last_updated: "2026-08-03T06:22:43.312Z"
-last_activity: 2026-08-02
-last_activity_desc: Completed 01-01-PLAN.md (backend walking skeleton)
+current_phase: 2
+current_phase_name: Manual Trading
+status: executing
+stopped_at: Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
+last_updated: "2026-08-03T06:35:20.330Z"
+last_activity: 2026-08-03
+last_activity_desc: Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-01)
 
 **Core value:** A user opens one URL and, with zero setup, sees live-streaming prices, can place trades, and can chat with an AI copilot that actually analyzes their portfolio and executes trades for them.
-**Current focus:** Phase 1 — Live Market Terminal
+**Current focus:** Phase 2 — Manual Trading
 
 ## Current Position
 
-Phase: 1 of 5 (Live Market Terminal)
-Plan: 4 of 4 in current phase
-Status: Phase complete — ready for verification
-Last activity: 2026-08-02 — Completed 01-01-PLAN.md (backend walking skeleton)
+Phase: 2 of 5 (Manual Trading)
+Plan: 2 of 4 in current phase
+Status: Ready to execute
+Last activity: 2026-08-03 — Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
 
-Progress: [██████░░░░] 63%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [██████░░░░] 63%
 | Phase 01 P03 | 22min | 2 tasks | 8 files |
 | Phase 1 P04 | 35min | 2 tasks | 4 files |
 | Phase 02 P01 | 27min | 2 tasks | 4 files |
+| Phase 02 P02 | 20min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 01-03: react-hooks/refs ESLint rule (Next.js 16) forced a ref-accumulate/state-publish shape in useSseStream.ts instead of the plan's literal ref-only + version-counter pattern; CHG% colored by sign of session-baseline percent, not tick-to-tick direction
 - [Phase ?]: 02-01: execute_trade() is now the single mutation path for cash/positions/trades (buy+sell), guarded atomically via UPDATE...WHERE + rowcount, mirroring Phase 1's add_watchlist_ticker pattern
 - [Phase ?]: 02-01: combined multi-line SQL string literals into single lines in _apply_buy/_apply_sell so grep-based plan verify gates match the exact statement text (no behavior change)
+- [Phase 2]: 02-02: TEST-01 proof suite (14 tests) proves execute_trade() exact-value money math and a 20-caller concurrency race under load; the race proof was confirmed real via an uncommitted mutation spot-check that reverted the buy guard to check-then-act and observed the test fail (12/20 fills instead of 1)
 
 ### Pending Todos
 
@@ -108,6 +110,6 @@ Phase 1 verification status is `human_needed`: 0 code-level gaps, 11/11 requirem
 
 ## Session Continuity
 
-Last session: 2026-08-03T06:22:43.258Z
-Stopped at: Completed 02-01-PLAN.md (trade engine + portfolio API)
+Last session: 2026-08-03T06:35:20.318Z
+Stopped at: Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
 Resume file: None
