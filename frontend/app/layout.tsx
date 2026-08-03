@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AppHeader } from "@/components/AppHeader";
 import { PriceStreamProvider } from "@/components/PriceStreamProvider";
+import { PortfolioProvider } from "@/components/PortfolioProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -23,8 +24,10 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full`}>
       <body className="flex h-full min-h-screen flex-col bg-canvas font-sans antialiased">
         <PriceStreamProvider>
-          <AppHeader />
-          {children}
+          <PortfolioProvider>
+            <AppHeader />
+            {children}
+          </PortfolioProvider>
         </PriceStreamProvider>
       </body>
     </html>

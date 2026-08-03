@@ -1,4 +1,4 @@
-import type { WatchlistItem } from "./types";
+import type { PortfolioSnapshot, TradeResult, TradeSide, WatchlistItem } from "./types";
 
 /**
  * Base URL for API requests. Empty string resolves to same-origin relative
@@ -63,4 +63,28 @@ export async function removeWatchlistTicker(ticker: string): Promise<void> {
   if (!response.ok) {
     throw new ApiError(response.status, await parseErrorMessage(response));
   }
+}
+
+export async function fetchPortfolio(): Promise<PortfolioSnapshot> {
+  const response = await fetch(`${API_BASE}/api/portfolio`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await parseErrorMessage(response));
+  }
+  return (await response.json()) as PortfolioSnapshot;
+}
+
+export async function executeTrade(
+  ticker: string,
+  side: TradeSide,
+  quantity: number,
+): Promise<TradeResult> {
+  const response = await fetch(`${API_BASE}/api/portfolio/trade`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticker, side, quantity }),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await parseErrorMessage(response));
+  }
+  return (await response.json()) as TradeResult;
 }

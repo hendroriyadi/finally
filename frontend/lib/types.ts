@@ -21,3 +21,37 @@ export interface PriceUpdate {
 export type PriceMap = Record<string, PriceUpdate>;
 
 export type ConnectionStatus = "connected" | "reconnecting" | "disconnected";
+
+/**
+ * Portfolio wire types mirroring the backend contract documented in
+ * `02-01-PLAN.md`'s `<interfaces>` block.
+ */
+
+export interface Holding {
+  ticker: string;
+  quantity: number;
+  avg_cost: number;
+}
+
+export interface Position extends Holding {
+  current_price: number | null;
+  unrealized_pnl: number | null;
+  change_percent: number | null;
+}
+
+export interface PortfolioSnapshot {
+  cash_balance: number;
+  total_value: number;
+  positions: Position[];
+}
+
+export type TradeSide = "buy" | "sell";
+
+export interface TradeResult {
+  ticker: string;
+  side: TradeSide;
+  quantity: number;
+  price: number;
+  cash_balance: number;
+  position: Holding | null;
+}
