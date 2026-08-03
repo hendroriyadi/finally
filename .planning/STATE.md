@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 2
 current_phase_name: Manual Trading
 status: executing
-stopped_at: Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
-last_updated: "2026-08-03T06:35:20.330Z"
+stopped_at: Completed 02-03-PLAN.md (shared PortfolioProvider + trade bar)
+last_updated: "2026-08-03T06:46:28.797Z"
 last_activity: 2026-08-03
 last_activity_desc: Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 2 of 5 (Manual Trading)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Ready to execute
 Last activity: 2026-08-03 — Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [████████░░] 75%
 | Phase 1 P04 | 35min | 2 tasks | 4 files |
 | Phase 02 P01 | 27min | 2 tasks | 4 files |
 | Phase 02 P02 | 20min | 2 tasks | 1 files |
+| Phase 02 P03 | 25min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 02-01: execute_trade() is now the single mutation path for cash/positions/trades (buy+sell), guarded atomically via UPDATE...WHERE + rowcount, mirroring Phase 1's add_watchlist_ticker pattern
 - [Phase ?]: 02-01: combined multi-line SQL string literals into single lines in _apply_buy/_apply_sell so grep-based plan verify gates match the exact statement text (no behavior change)
 - [Phase 2]: 02-02: TEST-01 proof suite (14 tests) proves execute_trade() exact-value money math and a 20-caller concurrency race under load; the race proof was confirmed real via an uncommitted mutation spot-check that reverted the buy guard to check-then-act and observed the test fail (12/20 fills instead of 1)
+- [Phase ?]: [Phase 2] 02-03: PortfolioProvider derives totalValue in the render body from positions x live SSE prices (falling back to avg_cost when a ticker is absent from the price map), so it moves on every tick with zero extra network requests; poll effect uses inline .then() chains rather than calling the shared async refresh() directly, to satisfy eslint-config-next 16's react-hooks/set-state-in-effect rule
 
 ### Pending Todos
 
@@ -110,6 +112,6 @@ Phase 1 verification status is `human_needed`: 0 code-level gaps, 11/11 requirem
 
 ## Session Continuity
 
-Last session: 2026-08-03T06:35:20.318Z
-Stopped at: Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
+Last session: 2026-08-03T06:46:28.788Z
+Stopped at: Completed 02-03-PLAN.md (shared PortfolioProvider + trade bar)
 Resume file: None

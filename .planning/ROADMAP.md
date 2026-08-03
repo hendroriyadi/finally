@@ -61,13 +61,13 @@ Plans:
   4. The header shows total portfolio value and cash balance updating live, alongside a connection-status dot (green connected / yellow reconnecting / red disconnected)
   5. Buying beyond available cash or selling more shares than owned is rejected with a clear message and leaves cash and positions exactly unchanged, even under concurrent requests
 
-**Plans**: 2/4 plans executed
+**Plans**: 3/4 plans executed
 
 Plans:
 
 - [x] 02-01-PLAN.md — Trade engine and portfolio API: atomic buy/sell, position upsert, trade log, valued read (wave 1)
 - [x] 02-02-PLAN.md — TEST-01 proof suite: money math, state integrity, and concurrent-trade race safety (wave 2)
-- [ ] 02-03-PLAN.md — Shared portfolio state and the trade bar: buy and sell from the browser (wave 2)
+- [x] 02-03-PLAN.md — Shared portfolio state and the trade bar: buy and sell from the browser (wave 2)
 - [ ] 02-04-PLAN.md — Positions table and live header: portfolio value and cash ticking with the stream (wave 3)
 
 **UI hint**: yes
@@ -129,7 +129,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Live Market Terminal | 4/4 | In Progress|  |
-| 2. Manual Trading | 2/4 | In Progress|  |
+| 2. Manual Trading | 3/4 | In Progress|  |
 | 3. Portfolio Visualization | 0/TBD | Not started | - |
 | 4. AI Copilot | 0/TBD | Not started | - |
 | 5. One-Command Ship | 0/TBD | Not started | - |
