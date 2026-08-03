@@ -15,7 +15,7 @@ import { usePortfolioContext } from "@/components/PortfolioProvider";
  */
 export function AppHeader() {
   const { status } = usePriceStreamContext();
-  const { totalValue, cashBalance, loading } = usePortfolioContext();
+  const { totalValue, cashBalance, loading, error } = usePortfolioContext();
 
   return (
     <header className="flex items-center justify-between border-b border-edge bg-panel px-8 py-4">
@@ -24,13 +24,13 @@ export function AppHeader() {
         <div className="text-right">
           <div className="text-xs font-semibold leading-tight text-[#8b949e]">PORTFOLIO VALUE</div>
           <div className="text-base font-semibold leading-tight tabular-nums">
-            {loading ? "—" : totalValue.toFixed(2)}
+            {loading || error ? "—" : totalValue.toFixed(2)}
           </div>
         </div>
         <div className="text-right">
           <div className="text-xs font-semibold leading-tight text-[#8b949e]">CASH</div>
           <div className="text-base font-semibold leading-tight tabular-nums">
-            {loading ? "—" : cashBalance.toFixed(2)}
+            {loading || error ? "—" : cashBalance.toFixed(2)}
           </div>
         </div>
         <ConnectionStatusDot status={status} />
