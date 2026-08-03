@@ -71,18 +71,29 @@ async def execute_trade(
     trade_id = str(uuid.uuid4())
 
     def _txn(conn: sqlite3.Connection) -> dict:
-        if side != "buy":
-            raise NotImplementedError("execute_trade() only supports side='buy' so far")
-
-        _apply_buy(conn, user_id=user_id, cost=cost)
-        _upsert_position_on_buy(
-            conn,
-            user_id=user_id,
-            ticker=ticker,
-            quantity_dec=quantity_dec,
-            price_dec=price_dec,
-            now=now,
-        )
+        if side == "buy":
+            _apply_buy(conn, user_id=user_id, cost=cost)
+            _upsert_position_on_buy(
+                conn,
+                user_id=user_id,
+                ticker=ticker,
+                quantity_dec=quantity_dec,
+                price_dec=price_dec,
+                now=now,
+            )
+        elif side == "sell":
+            _apply_sell(
+                conn,
+                user_id=user_id,
+                ticker=ticker,
+                quantity_dec=quantity_dec,
+                proceeds=cost,
+            )
+        else:
+            # A caller bypassing the Pydantic layer (Phase 4's copilot parsing
+            # model output) must not be able to reach the database with an
+            # unexpected side.
+            raise TradeRejectedError(f"Unrecognized trade side: {side!r}")
 
         conn.execute(
             "INSERT INTO trades (id, user_id, ticker, side, quantity, price, executed_at) "
@@ -164,6 +175,49 @@ def _upsert_position_on_buy(
         "UPDATE positions SET quantity = ?, avg_cost = ?, updated_at = ? "
         "WHERE user_id = ? AND ticker = ?",
         (float(new_qty), float(new_avg), now, user_id, ticker),
+    )
+
+
+def _apply_sell(
+    conn: sqlite3.Connection,
+    *,
+    user_id: str,
+    ticker: str,
+    quantity_dec: Decimal,
+    proceeds: Decimal,
+) -> None:
+    """Atomic share guard (mirror of `_apply_buy`'s cash guard, D-02, T-02-02):
+    the sufficiency test and the debit are the same statement, checked via
+    `cursor.rowcount`. A missing position row and an insufficient one both
+    fall out as zero affected rows, so one guard covers both without a
+    separate existence check. This raise happens before the cash credit, so
+    a rejected sell can never mint proceeds.
+
+    Full-position sell deletes the row rather than leaving `quantity == 0`
+    (D-05) — compared against exact zero, no tolerance window, since the
+    subtrahend is bit-identical to the stored value when the caller sells
+    exactly what is held. `avg_cost` is left untouched on every sell path.
+    """
+    cur = conn.execute(
+        "UPDATE positions SET quantity = quantity - ? WHERE user_id = ? AND ticker = ? AND quantity >= ?",
+        (float(quantity_dec), user_id, ticker, float(quantity_dec)),
+    )
+    if cur.rowcount == 0:
+        raise InsufficientSharesError(f"Insufficient shares to sell {ticker} for {user_id!r}")
+
+    remaining_row = conn.execute(
+        "SELECT quantity FROM positions WHERE user_id = ? AND ticker = ?",
+        (user_id, ticker),
+    ).fetchone()
+    remaining = Decimal(str(remaining_row["quantity"]))
+    if remaining == Decimal("0"):
+        conn.execute(
+            "DELETE FROM positions WHERE user_id = ? AND ticker = ?", (user_id, ticker)
+        )
+
+    conn.execute(
+        "UPDATE users_profile SET cash_balance = cash_balance + ? WHERE id = ?",
+        (float(proceeds), user_id),
     )
 
 

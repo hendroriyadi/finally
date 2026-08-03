@@ -21,7 +21,9 @@ from pydantic import BaseModel, Field
 
 from app.db.portfolio import (
     InsufficientCashError,
+    InsufficientSharesError,
     NoPriceAvailableError,
+    TradeRejectedError,
     execute_trade,
     get_portfolio_state,
     value_portfolio,
@@ -108,6 +110,14 @@ def create_portfolio_router() -> APIRouter:
         except InsufficientCashError:
             raise HTTPException(
                 status_code=409, detail=f"Insufficient cash to buy {ticker}"
+            ) from None
+        except InsufficientSharesError:
+            raise HTTPException(
+                status_code=409, detail=f"Insufficient shares to sell {ticker}"
+            ) from None
+        except TradeRejectedError as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Trade rejected for {ticker}: {exc}"
             ) from None
 
         return TradeResponse(**result)

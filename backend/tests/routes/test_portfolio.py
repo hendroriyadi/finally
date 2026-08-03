@@ -17,6 +17,8 @@ import json
 
 import pytest
 
+from app.db.connection import connect
+
 
 def _live_price(client, ticker: str) -> float:
     price = client.app.state.price_cache.get_price(ticker)
@@ -129,3 +131,142 @@ def test_money_values_are_json_numbers_not_strings(client):
     assert isinstance(raw_trade["cash_balance"], float)
     assert isinstance(raw_trade["price"], float)
     assert isinstance(raw_trade["quantity"], float)
+
+
+# --- Task 2: sell, rejections, and the state-untouched proof ---------------
+
+
+def _read_state(user_id: str = "default", ticker: str = "AAPL") -> dict:
+    """Read cash, the position row, and the trades count from a fresh
+    connection — not from the HTTP response or any in-process value — so
+    rejection tests actually prove the transaction rolled back rather than
+    merely proving the handler returned an error message."""
+    conn = connect()
+    try:
+        cash_row = conn.execute(
+            "SELECT cash_balance FROM users_profile WHERE id = ?", (user_id,)
+        ).fetchone()
+        position_row = conn.execute(
+            "SELECT quantity, avg_cost FROM positions WHERE user_id = ? AND ticker = ?",
+            (user_id, ticker),
+        ).fetchone()
+        trade_count = conn.execute(
+            "SELECT COUNT(*) FROM trades WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        return {
+            "cash_balance": cash_row["cash_balance"] if cash_row else None,
+            "position": dict(position_row) if position_row else None,
+            "trade_count": trade_count,
+        }
+    finally:
+        conn.close()
+
+
+def test_partial_sell_reduces_quantity_and_leaves_avg_cost_unchanged(client):
+    buy = client.post(
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 10}
+    ).json()
+    avg_cost = buy["position"]["avg_cost"]
+
+    response = client.post(
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "sell", "quantity": 4}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["position"]["quantity"] == 6.0
+    assert body["position"]["avg_cost"] == pytest.approx(avg_cost)
+
+
+def test_full_sell_removes_position_row_and_returns_null_position(client):
+    client.post("/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 10})
+
+    response = client.post(
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "sell", "quantity": 10}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["position"] is None
+
+    portfolio = client.get("/api/portfolio").json()
+    assert not any(p["ticker"] == "AAPL" for p in portfolio["positions"])
+
+    state = _read_state()
+    assert state["position"] is None
+
+
+def test_fractional_sell_credits_exactly_the_proceeds(client):
+    buy = client.post(
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 10}
+    ).json()
+    cash_after_buy = buy["cash_balance"]
+
+    response = client.post(
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "sell", "quantity": 0.5}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cash_balance"] == pytest.approx(cash_after_buy + 0.5 * body["price"])
+
+
+def test_oversized_sell_returns_409_and_leaves_state_byte_identical(client):
+    client.post("/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 10})
+    before = _read_state()
+
+    response = client.post(
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "sell", "quantity": 999}
+    )
+    assert response.status_code == 409
+
+    after = _read_state()
+    assert after == before
+
+
+def test_sell_of_unheld_ticker_returns_409_and_writes_nothing(client):
+    before = _read_state(ticker="GOOGL")
+
+    response = client.post(
+        "/api/portfolio/trade", json={"ticker": "GOOGL", "side": "sell", "quantity": 1}
+    )
+    assert response.status_code == 409
+
+    after = _read_state(ticker="GOOGL")
+    assert after == before
+
+
+def test_buy_exceeding_cash_returns_409_and_appends_no_trade_row(client):
+    before = _read_state()
+
+    response = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "AAPL", "side": "buy", "quantity": 1_000_000},
+    )
+    assert response.status_code == 409
+
+    after = _read_state()
+    assert after == before
+
+
+def test_trade_with_no_cached_price_returns_400_and_writes_nothing(client):
+    client.app.state.price_cache.remove("AAPL")
+    before = _read_state()
+
+    response = client.post(
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 1}
+    )
+    assert response.status_code == 400
+
+    after = _read_state()
+    assert after == before
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"ticker": "AAPL", "side": "buy", "quantity": 0},
+        {"ticker": "AAPL", "side": "buy", "quantity": -5},
+        {"ticker": "AAPL", "side": "short", "quantity": 1},
+    ],
+)
+def test_malformed_trade_body_returns_422_before_the_engine_runs(client, payload):
+    response = client.post("/api/portfolio/trade", json=payload)
+    assert response.status_code == 422
