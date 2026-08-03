@@ -5,11 +5,24 @@ cash, positions, and trade history.
 `users_profile.cash_balance`, `positions`, or `trades` (the CHAT-03
 contract: Phase 4's AI copilot must call this exact function, unchanged).
 Every statement in this module uses `?` placeholders; no value is ever
-interpolated into SQL text. All arithmetic is `Decimal` — constructed via
-`Decimal(str(value))`, never from a raw float directly, since that would
-import the float's binary imprecision into every downstream sum — with
-`float` appearing only at the SQLite `REAL` write boundary and the
-dict-return boundary consumed by the route layer.
+interpolated into SQL text.
+
+Every operand handed to SQL is *derived* via `Decimal(str(value))` —
+never from a raw float directly, since that would import the float's
+binary imprecision into every downstream sum (D-01) — and every result
+read back is *re-checked* the same way. But the mutating arithmetic itself
+(`cash_balance - ?`, `quantity - ?`, `cash_balance + ?`) runs as native
+SQLite `REAL` (double-precision float) subtraction/addition inside the
+UPDATE statement, not as Decimal arithmetic — Decimal never touches the
+database layer directly, since SQLite has no Decimal type. This round trip
+(Decimal-derive -> float write -> float read -> Decimal-recheck) is exact
+for any value both sides can represent with the same string, which is why
+`positions.quantity` is quantized to a fixed 6-decimal precision at every
+write (`_quantize_quantity`, CR-01/WR-01): it keeps the stored value and
+the frontend's `toFixed(6)` display bit-identical, so a full-position sell
+of the displayed quantity always lands on (Decimal-exact-zero plus, at
+most, float subtraction noise many orders of magnitude below the smallest
+representable share unit) rather than drifting relative to the display.
 """
 
 from __future__ import annotations
@@ -18,11 +31,36 @@ import logging
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from .connection import DEFAULT_USER_ID, run_db
 
 logger = logging.getLogger(__name__)
+
+# `positions.quantity` is quantized to this many decimal places at every
+# write (buy upsert and post-sell remainder) so the stored value is always
+# bit-identical to what the frontend's `formatQuantity()` (`toFixed(6)`)
+# displays (CR-01). This is the root-cause fix: rather than tolerating
+# drift between "what's stored" and "what's shown", the two are made the
+# same representation, so a user who reads the displayed quantity and
+# sells it back is always selling the exact stored value.
+_QUANTITY_SCALE = Decimal("0.000001")
+
+# Below this threshold, a post-sell remainder is treated as a fully-closed
+# position rather than a real fractional holding. This is deliberately
+# HALF of `_QUANTITY_SCALE` (not equal to it): any *legitimate* quantized
+# position differs from zero by at least `_QUANTITY_SCALE` (1e-6), so a
+# tolerance of half that value only ever absorbs genuine floating-point
+# subtraction noise (typically ~1e-13 to 1e-16 in magnitude) from the raw
+# SQLite float arithmetic — it can never mistake a real minimal position
+# for dust.
+_DUST_TOLERANCE = Decimal("0.0000005")
+
+
+def _quantize_quantity(value: Decimal) -> Decimal:
+    """Round a share quantity to `_QUANTITY_SCALE` decimal places, matching
+    the frontend's `toFixed(6)` display precision (CR-01's root-cause fix)."""
+    return value.quantize(_QUANTITY_SCALE, rounding=ROUND_HALF_UP)
 
 
 class TradeRejectedError(Exception):
@@ -66,6 +104,19 @@ async def execute_trade(
     # imprecision into every downstream sum (D-01).
     price_dec = Decimal(str(price))
     quantity_dec = Decimal(str(quantity))
+
+    # CR-02: the HTTP route's Pydantic `Field(gt=0, ...)` is NOT a
+    # substitute for a guard here — this function is the documented
+    # CHAT-03 entry point Phase 4's AI copilot calls directly, bypassing
+    # that layer entirely. A non-positive, NaN, or infinite quantity must
+    # be rejected before it reaches any arithmetic: a negative buy would
+    # increase cash_balance via `cash_balance - (negative cost)`, and a
+    # negative sell would increase the held quantity via
+    # `quantity - (negative quantity)` while debiting cash — both mint
+    # value from nothing.
+    if not quantity_dec.is_finite() or quantity_dec <= 0:
+        raise TradeRejectedError(f"Invalid trade quantity: {quantity!r}")
+
     cost = quantity_dec * price_dec
     now = datetime.now(timezone.utc).isoformat()
     trade_id = str(uuid.uuid4())
@@ -160,10 +211,11 @@ def _upsert_position_on_buy(
     ).fetchone()
 
     if existing is None:
+        stored_qty = _quantize_quantity(quantity_dec)
         conn.execute(
             "INSERT INTO positions (id, user_id, ticker, quantity, avg_cost, updated_at) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            (str(uuid.uuid4()), user_id, ticker, float(quantity_dec), float(price_dec), now),
+            (str(uuid.uuid4()), user_id, ticker, float(stored_qty), float(price_dec), now),
         )
         return
 
@@ -171,10 +223,15 @@ def _upsert_position_on_buy(
     old_avg = Decimal(str(existing["avg_cost"]))
     new_qty = old_qty + quantity_dec
     new_avg = (old_qty * old_avg + quantity_dec * price_dec) / new_qty
+    # CR-01: quantize the stored quantity (not `new_avg`) to
+    # `_QUANTITY_SCALE` so it stays bit-identical to the frontend's
+    # `toFixed(6)` display no matter how many decimal digits this buy or
+    # the prior stored quantity carried.
+    stored_qty = _quantize_quantity(new_qty)
     conn.execute(
         "UPDATE positions SET quantity = ?, avg_cost = ?, updated_at = ? "
         "WHERE user_id = ? AND ticker = ?",
-        (float(new_qty), float(new_avg), now, user_id, ticker),
+        (float(stored_qty), float(new_avg), now, user_id, ticker),
     )
 
 
@@ -194,9 +251,18 @@ def _apply_sell(
     a rejected sell can never mint proceeds.
 
     Full-position sell deletes the row rather than leaving `quantity == 0`
-    (D-05) — compared against exact zero, no tolerance window, since the
-    subtrahend is bit-identical to the stored value when the caller sells
-    exactly what is held. `avg_cost` is left untouched on every sell path.
+    (D-05, CR-01) — checked against `_DUST_TOLERANCE`, not exact zero. The
+    subtraction itself is raw SQLite float arithmetic, so even a bit-for-bit
+    identical sell can leave a residual many orders of magnitude below the
+    smallest representable share unit (`_QUANTITY_SCALE`); the tolerance
+    check absorbs that noise. The root cause is fixed one layer up
+    (`_upsert_position_on_buy` quantizes every stored quantity to
+    `_QUANTITY_SCALE`), so the *displayed* quantity and the *stored*
+    quantity are always the same number — a sell of the displayed quantity
+    is a sell of the stored quantity, not an approximation of it. Any
+    non-dust remainder is itself re-quantized before being written back, so
+    quantization never regresses across a chain of partial sells. `avg_cost`
+    is left untouched on every sell path.
     """
     cur = conn.execute(
         "UPDATE positions SET quantity = quantity - ? WHERE user_id = ? AND ticker = ? AND quantity >= ?",
@@ -210,10 +276,17 @@ def _apply_sell(
         (user_id, ticker),
     ).fetchone()
     remaining = Decimal(str(remaining_row["quantity"]))
-    if remaining == Decimal("0"):
+    if remaining <= _DUST_TOLERANCE:
         conn.execute(
             "DELETE FROM positions WHERE user_id = ? AND ticker = ?", (user_id, ticker)
         )
+    else:
+        quantized_remaining = _quantize_quantity(remaining)
+        if quantized_remaining != remaining:
+            conn.execute(
+                "UPDATE positions SET quantity = ? WHERE user_id = ? AND ticker = ?",
+                (float(quantized_remaining), user_id, ticker),
+            )
 
     conn.execute(
         "UPDATE users_profile SET cash_balance = cash_balance + ? WHERE id = ?",

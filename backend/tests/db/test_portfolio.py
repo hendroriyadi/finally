@@ -21,6 +21,7 @@ from app.db.portfolio import (
     InsufficientCashError,
     InsufficientSharesError,
     NoPriceAvailableError,
+    TradeRejectedError,
     execute_trade,
 )
 
@@ -144,6 +145,93 @@ async def test_full_position_sell_leaves_no_row(temp_db):
 
     _, position, _ = _read_state("AAPL")
     assert position is None  # absence of the row, not a zero quantity
+
+
+async def test_full_position_sell_with_high_precision_quantity_leaves_no_row(temp_db):
+    """IN-01/CR-01 regression, failure mode 1 ("dust"): a single buy whose
+    quantity carries more than 6 decimal digits of precision — a routine
+    consequence of unrestricted fractional-share buys, not an exotic input —
+    is quantized to `_QUANTITY_SCALE` at write time, so the server-reported
+    quantity is always exactly what a full-position sell must supply to
+    close the row, with no leftover "dust" row surviving underneath."""
+    await init_db()
+    cache = _FixedPriceCache({"AAPL": 50.0})
+
+    await execute_trade("AAPL", "buy", 74.1457117, price_cache=cache)
+
+    _, position, _ = _read_state("AAPL")
+    assert position is not None
+    server_quantity = position[0]
+    # Quantized to 6 decimals at write (CR-01) — bit-identical to what
+    # `PositionsTable.formatQuantity()`'s `toFixed(6)` would display.
+    assert server_quantity == pytest.approx(74.145712)
+
+    await execute_trade("AAPL", "sell", server_quantity, price_cache=cache)
+
+    _, position_after, _ = _read_state("AAPL")
+    assert position_after is None  # no dust row survives
+
+
+async def test_full_position_sell_with_ui_rounded_quantity_leaves_no_row(temp_db):
+    """IN-01/CR-01 regression, failure mode 2 (false rejection): selling the
+    value a user would actually read off the UI (round-tripped through the
+    same `toFixed(6)` truncation `PositionsTable.formatQuantity()` performs,
+    then trailing zeros trimmed exactly as the frontend does) must close the
+    position outright — not raise `InsufficientSharesError` and not leave a
+    dust row."""
+    await init_db()
+    cache = _FixedPriceCache({"AAPL": 50.0})
+
+    await execute_trade("AAPL", "buy", 74.1457117, price_cache=cache)
+
+    _, position, _ = _read_state("AAPL")
+    assert position is not None
+    # Mirror frontend/components/PositionsTable.tsx's formatQuantity():
+    # toFixed(6), then strip trailing zeros, then parse back to a float,
+    # exactly as a user re-typing the displayed value into TradeBar would.
+    ui_quantity = float(f"{position[0]:.6f}".rstrip("0").rstrip("."))
+
+    await execute_trade("AAPL", "sell", ui_quantity, price_cache=cache)
+
+    _, position_after, _ = _read_state("AAPL")
+    assert position_after is None  # no false 409, no dust
+
+
+async def test_execute_trade_rejects_negative_quantity_bypassing_pydantic(temp_db):
+    """CR-02 regression: `execute_trade()` is the documented CHAT-03 entry
+    point Phase 4's AI copilot calls directly, bypassing the HTTP route's
+    Pydantic `Field(gt=0, ...)` guard entirely. A negative quantity must be
+    rejected inside the engine itself, before any arithmetic mutates cash or
+    shares."""
+    await init_db()
+    cache = _FixedPriceCache({"AAPL": 100.0})
+    before = _read_state("AAPL")
+
+    with pytest.raises(TradeRejectedError):
+        await execute_trade("AAPL", "buy", -5, price_cache=cache)
+
+    assert _read_state("AAPL") == before  # no cash manufactured
+
+    with pytest.raises(TradeRejectedError):
+        await execute_trade("AAPL", "sell", -5, price_cache=cache)
+
+    assert _read_state("AAPL") == before  # no shares manufactured
+
+
+async def test_execute_trade_rejects_zero_nan_and_infinite_quantity(temp_db):
+    """CR-02 regression: zero, NaN, and infinite quantities must all be
+    rejected by the same internal guard, independent of the HTTP layer."""
+    await init_db()
+    cache = _FixedPriceCache({"AAPL": 100.0})
+
+    with pytest.raises(TradeRejectedError):
+        await execute_trade("AAPL", "buy", 0, price_cache=cache)
+
+    with pytest.raises(TradeRejectedError):
+        await execute_trade("AAPL", "buy", float("nan"), price_cache=cache)
+
+    with pytest.raises(TradeRejectedError):
+        await execute_trade("AAPL", "buy", float("inf"), price_cache=cache)
 
 
 async def test_oversell_raises_and_leaves_state_untouched(temp_db):
