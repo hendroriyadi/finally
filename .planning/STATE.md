@@ -109,8 +109,11 @@ Items acknowledged and carried forward from previous milestone close:
 | Phase | State | Resume |
 |-------|-------|--------|
 | 1 | verification_deferred_human | /gsd-verify-work 1 |
+| 2 | verification_deferred_human | /gsd-verify-work 2 |
 
 Phase 1 verification status is `human_needed`: 0 code-level gaps, 11/11 requirements satisfied, all logic source- and test-verified, but 5 items (flash animation timing, sparkline fill-in, dark-theme visual rendering, add/remove persistence across refresh+restart, SSE auto-resume) require a live browser session that was not exercised in this unattended run (3 consecutive agent stalls/crashes attempting it). Proceeding to Phase 2 on the basis that Phase 2 builds on the independently-tested persistence layer and API contracts, not on the unverified visual behavior. Run `/gsd-verify-work 1` with a real browser session when convenient.
+
+Phase 2 verification status is `human_needed`: 0 gaps, 8/8 requirements satisfied, 128/128 backend tests passing, both critical code-review findings (CR-01 precision/dust bug, CR-02 missing internal quantity guard) fixed and re-verified. Same live-browser gap as Phase 1 — 5 items (buy/sell click-through, live-updating positions table/header, rejection UX, error-state header) deferred to `/gsd-verify-work 2`. Proceeding to Phase 3 on the basis that it builds on this phase's independently-tested API/data layer.
 
 ## Session Continuity
 
