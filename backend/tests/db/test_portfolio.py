@@ -11,6 +11,8 @@ the evidence.
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from app.db.connection import DEFAULT_USER_ID, connect
@@ -202,5 +204,151 @@ async def test_trade_log_records_one_row_per_successful_trade(temp_db):
     assert rows[1]["side"] == "sell"
     assert rows[1]["quantity"] == 4.0
     assert rows[1]["price"] == 200.0
+
+
+# --- Task 2: the race proof — twenty callers, one finite balance -----------
+
+
+def _set_cash_balance(cash: float) -> None:
+    """Direct write through a fresh connection — seeding through the engine
+    would itself consume the balance the test is trying to pin."""
+    conn = connect()
+    try:
+        conn.execute(
+            "UPDATE users_profile SET cash_balance = ? WHERE id = ?",
+            (cash, DEFAULT_USER_ID),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _seed_position(ticker: str, quantity: float, avg_cost: float) -> None:
+    """Direct row insert through a fresh connection, bypassing `execute_trade`
+    entirely so the seeded quantity is exactly what the test pins."""
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT INTO positions (id, user_id, ticker, quantity, avg_cost, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                f"seed-{ticker}",
+                DEFAULT_USER_ID,
+                ticker,
+                quantity,
+                avg_cost,
+                "2026-01-01T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+async def test_concurrent_buys_never_overdraw_balance(temp_db):
+    """T-02-10: `run_db` hands each call to `asyncio.to_thread` with its own
+    connection, and SQLite serializes writers under its own lock in WAL
+    mode, so the guard being inside the mutating UPDATE statement is the
+    only thing standing between twenty threads and an overdrawn balance."""
+    await init_db()
+    cache = _FixedPriceCache({"AAPL": 100.0})
+    seeded_cash = 1_000.0  # affords exactly one buy of 10 shares @ 100.0
+    _set_cash_balance(seeded_cash)
+
+    async def try_buy(_i: int) -> bool:
+        try:
+            await execute_trade("AAPL", "buy", 10, price_cache=cache)
+        except InsufficientCashError:
+            return False
+        return True
+
+    results = await asyncio.gather(*(try_buy(i) for i in range(20)))
+
+    cash, _, trades = _read_state("AAPL")
+    assert sum(results) == 1
+    assert cash == seeded_cash - 10 * 100.0
+    assert cash >= 0
+    assert trades == sum(results)
+
+
+async def test_concurrent_full_sells_never_oversell(temp_db):
+    await init_db()
+    cache = _FixedPriceCache({"AAPL": 100.0})
+    _seed_position("AAPL", 10.0, 100.0)
+
+    async def try_sell(_i: int) -> bool:
+        try:
+            await execute_trade("AAPL", "sell", 10, price_cache=cache)
+        except InsufficientSharesError:
+            return False
+        return True
+
+    results = await asyncio.gather(*(try_sell(i) for i in range(20)))
+
+    _, position, trades = _read_state("AAPL")
+    assert sum(results) == 1
+    assert position is None
+    assert trades == 1
+
+
+async def test_concurrent_partial_sells_fill_exactly_what_position_affords(temp_db):
+    await init_db()
+    cache = _FixedPriceCache({"AAPL": 100.0})
+    starting_qty = 35.0  # affords exactly 3 sells of 10 shares, 5 left over
+    _seed_position("AAPL", starting_qty, 100.0)
+
+    async def try_sell(_i: int) -> bool:
+        try:
+            await execute_trade("AAPL", "sell", 10, price_cache=cache)
+        except InsufficientSharesError:
+            return False
+        return True
+
+    results = await asyncio.gather(*(try_sell(i) for i in range(20)))
+
+    _, position, _ = _read_state("AAPL")
+    remaining_qty = position[0] if position is not None else 0.0
+    assert sum(results) == 3
+    assert remaining_qty >= 0
+    assert remaining_qty == starting_qty - 3 * 10.0
+
+
+async def test_concurrent_mixed_buys_and_sells_keep_state_non_negative(temp_db):
+    """Interleaving order legitimately varies between runs, so only
+    invariants are asserted here, not an exact final balance — pinning an
+    exact number would produce a test that is flaky by construction, whereas
+    non-negativity and a matching trades count are exactly what a real
+    double-spend or double-sell would break on any interleaving."""
+    await init_db()
+    cache = _FixedPriceCache({"AAPL": 100.0})
+    seeded_cash = 1_000.0  # affords exactly one buy of 10 @ 100.0
+    seeded_qty = 10.0  # affords exactly one sell of 10 @ 100.0
+    _set_cash_balance(seeded_cash)
+    _seed_position("AAPL", seeded_qty, 100.0)
+
+    async def try_buy(_i: int) -> bool:
+        try:
+            await execute_trade("AAPL", "buy", 10, price_cache=cache)
+        except InsufficientCashError:
+            return False
+        return True
+
+    async def try_sell(_i: int) -> bool:
+        try:
+            await execute_trade("AAPL", "sell", 10, price_cache=cache)
+        except InsufficientSharesError:
+            return False
+        return True
+
+    results = await asyncio.gather(
+        *([try_buy(i) for i in range(10)] + [try_sell(i) for i in range(10)])
+    )
+
+    cash, position, trades = _read_state("AAPL")
+    remaining_qty = position[0] if position is not None else 0.0
+
+    assert cash >= 0
+    assert remaining_qty >= 0
+    assert trades == sum(results)
 
 
