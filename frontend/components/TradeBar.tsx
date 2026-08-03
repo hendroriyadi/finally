@@ -23,7 +23,7 @@ export function TradeBar() {
   const [pendingSide, setPendingSide] = useState<TradeSide | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { refresh } = usePortfolioContext();
+  const { positions, refresh } = usePortfolioContext();
 
   const parsedQuantity = Number(quantity);
   const isDisabled =
@@ -31,6 +31,22 @@ export function TradeBar() {
     ticker.trim() === "" ||
     !Number.isFinite(parsedQuantity) ||
     parsedQuantity <= 0;
+
+  // WR-03: the held position for whatever ticker is currently typed, so
+  // "Max" can source a sell quantity directly from the server's own record
+  // rather than from a hand-typed (and possibly rounded) number.
+  const heldPosition = positions.find((p) => p.ticker === ticker.trim().toUpperCase()) ?? null;
+
+  function fillMaxQuantity() {
+    if (heldPosition === null) {
+      return;
+    }
+    // String(heldPosition.quantity) — never `.toFixed(...)` — so the input
+    // is populated with the exact stored value, not a display-rounded one
+    // (that mismatch is exactly what CR-01 closes on the backend; this is
+    // the frontend half of the same fix).
+    setQuantity(String(heldPosition.quantity));
+  }
 
   async function submit(side: TradeSide) {
     const symbol = ticker.trim().toUpperCase();
@@ -71,8 +87,23 @@ export function TradeBar() {
     }
   }
 
+  // IN-02: wrapping in a <form>, matching AddTickerForm's pattern, gives
+  // Enter-to-submit for free. Enter defaults to "buy" — the non-destructive,
+  // additive action — since a single form can only have one implicit
+  // submit side; Sell always requires deliberately clicking the Sell
+  // button rather than being reachable via a stray Enter keypress.
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isDisabled) {
+      await submit("buy");
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-1 rounded-md border border-edge bg-panel p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-1 rounded-md border border-edge bg-panel p-4"
+    >
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -99,6 +130,19 @@ export function TradeBar() {
         />
         <button
           type="button"
+          disabled={heldPosition === null}
+          onClick={fillMaxQuantity}
+          title={
+            heldPosition === null
+              ? "No open position for this ticker"
+              : `Fill the exact held quantity (${heldPosition.quantity})`
+          }
+          className="rounded border border-edge px-2 py-1 text-xs font-semibold leading-tight text-[#8b949e] focus:outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Max
+        </button>
+        <button
+          type="button"
           disabled={isDisabled}
           onClick={() => submit("buy")}
           className="flex items-center gap-1.5 rounded bg-positive px-4 py-1 text-sm text-[#e6edf3] focus:outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
@@ -121,6 +165,6 @@ export function TradeBar() {
           {errorMessage}
         </p>
       ) : null}
-    </div>
+    </form>
   );
 }
