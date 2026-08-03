@@ -20,11 +20,11 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 
 ### Portfolio
 
-- [ ] **PORT-01**: User can view current positions with ticker, quantity, avg cost, current price, unrealized P&L, and % change
-- [ ] **PORT-02**: User can execute a market buy order (instant fill at current price, no fees, no confirmation dialog)
-- [ ] **PORT-03**: User can execute a market sell order (instant fill, no fees, no confirmation dialog)
-- [ ] **PORT-04**: Trade execution validates sufficient cash (buy) or sufficient shares (sell) atomically before committing, preventing check-then-deduct races
-- [ ] **PORT-05**: User can view total portfolio value and cash balance, updating live
+- [x] **PORT-01**: User can view current positions with ticker, quantity, avg cost, current price, unrealized P&L, and % change
+- [x] **PORT-02**: User can execute a market buy order (instant fill at current price, no fees, no confirmation dialog)
+- [x] **PORT-03**: User can execute a market sell order (instant fill, no fees, no confirmation dialog)
+- [x] **PORT-04**: Trade execution validates sufficient cash (buy) or sufficient shares (sell) atomically before committing, preventing check-then-deduct races
+- [x] **PORT-05**: User can view total portfolio value and cash balance, updating live
 - [ ] **PORT-06**: System records a portfolio value snapshot every 30 seconds and immediately after each trade
 - [ ] **PORT-07**: User can view portfolio value over time as a P&L line chart
 - [ ] **PORT-08**: User can view a heatmap/treemap of positions sized by portfolio weight and colored by P&L
@@ -97,11 +97,11 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | DB-03 | Phase 1 | Complete |
 | STREAM-01 | Phase 1 | Complete |
 | STREAM-02 | Phase 1 | Complete |
-| PORT-01 | Phase 2 | Pending |
-| PORT-02 | Phase 2 | Pending |
-| PORT-03 | Phase 2 | Pending |
-| PORT-04 | Phase 2 | Pending |
-| PORT-05 | Phase 2 | Pending |
+| PORT-01 | Phase 2 | Complete |
+| PORT-02 | Phase 2 | Complete |
+| PORT-03 | Phase 2 | Complete |
+| PORT-04 | Phase 2 | Complete |
+| PORT-05 | Phase 2 | Complete |
 | PORT-06 | Phase 3 | Pending |
 | PORT-07 | Phase 3 | Pending |
 | PORT-08 | Phase 3 | Pending |
