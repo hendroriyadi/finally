@@ -604,12 +604,12 @@ No meaningful "old approach vs. new approach" axis applies here — this is a fr
 
 **If this table is empty:** N/A — two low-risk discretionary assumptions logged above, both already flagged as Claude's-discretion in CONTEXT.md itself, not novel unverified claims.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should `TradeRequest.quantity` be typed `float` (matching `AddTickerRequest`'s existing convention) or `Decimal` directly?**
+1. **Should `TradeRequest.quantity` be typed `float` (matching `AddTickerRequest`'s existing convention) or `Decimal` directly?** — RESOLVED: Use `float`, for consistency with the existing codebase convention and CONTEXT.md's explicit boundary rule.
    - What we know: Typing it `float` matches the one existing Pydantic request-model convention in this codebase (`AddTickerRequest`) and is the simpler, more consistent choice; CONTEXT.md's Decimal-boundary rule ("construct from `str(value)`, never a raw float directly") already anticipates converting a `float` request field to `Decimal` inside `execute_trade()`.
    - What's unclear: Whether typing the request field `Decimal` directly (letting Pydantic-core parse the raw JSON number token) would avoid an intermediate `float` representation entirely for user-supplied quantity — this was not verified this session (would require confirming exactly how FastAPI decodes the request body before Pydantic validation, which was inconclusive from the docs fetched).
-   - Recommendation: Use `float` for consistency with the existing codebase convention and CONTEXT.md's explicit boundary rule; the marginal precision difference is not material at this project's scale (simulated trading, fractional shares, no regulatory precision requirement). Do not spend planning time chasing the more "theoretically precise" Decimal-typed-request-field approach — it's an unverified, low-value optimization.
+   - Recommendation: the marginal precision difference is not material at this project's scale (simulated trading, fractional shares, no regulatory precision requirement). Do not spend planning time chasing the more "theoretically precise" Decimal-typed-request-field approach — it's an unverified, low-value optimization.
 
 ## Environment Availability
 
