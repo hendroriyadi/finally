@@ -349,3 +349,254 @@ def test_history_after_a_turn_returns_both_rows_oldest_first_with_actions_as_jso
     # Actions arrive as a JSON array the test can index, not a quoted string.
     assert isinstance(body["messages"][1]["actions"], list)
     assert body["messages"][1]["actions"] == post_response.json()["actions"]
+
+
+# --- build_chat_messages() — pure function (Task 2 / CHAT-02) ---------------
+
+
+def _fabricated_portfolio(cash: float = 8000.0) -> dict:
+    return {
+        "cash_balance": cash,
+        "total_value": cash + 1500.0,
+        "positions": [
+            {
+                "ticker": "AAPL",
+                "quantity": 10.0,
+                "avg_cost": 150.0,
+                "current_price": 150.0,
+                "unrealized_pnl": 0.0,
+                "change_percent": 0.0,
+            }
+        ],
+    }
+
+
+def _fabricated_watchlist() -> list[dict]:
+    return [{"ticker": "GOOGL", "price": 175.25}]
+
+
+def test_build_chat_messages_includes_cash_holding_and_watchlist_price():
+    from app.routes.chat import build_chat_messages
+
+    messages = build_chat_messages(
+        portfolio=_fabricated_portfolio(cash=8000.0),
+        watchlist=_fabricated_watchlist(),
+        history=[],
+        user_message="how am I doing?",
+    )
+
+    rendered = "\n".join(m["content"] for m in messages)
+    assert "8000" in rendered
+    assert "AAPL" in rendered
+    assert "GOOGL" in rendered
+    assert "175.25" in rendered
+
+
+def test_build_chat_messages_persona_is_byte_identical_across_different_portfolios():
+    from app.routes.chat import build_chat_messages
+
+    first = build_chat_messages(
+        portfolio=_fabricated_portfolio(cash=8000.0),
+        watchlist=[],
+        history=[],
+        user_message="hello",
+    )
+    second = build_chat_messages(
+        portfolio=_fabricated_portfolio(cash=1234.0),
+        watchlist=[],
+        history=[],
+        user_message="hello",
+    )
+
+    assert first[0]["role"] == "system"
+    assert first[0]["content"] == second[0]["content"]
+    # The context message (second system message) is the volatile one.
+    assert first[1]["content"] != second[1]["content"]
+
+
+def test_build_chat_messages_holding_with_no_price_renders_unavailable_not_zero():
+    from app.routes.chat import build_chat_messages
+
+    portfolio = _fabricated_portfolio()
+    portfolio["positions"][0]["current_price"] = None
+    portfolio["positions"][0]["unrealized_pnl"] = None
+    portfolio["positions"][0]["change_percent"] = None
+
+    messages = build_chat_messages(
+        portfolio=portfolio, watchlist=[], history=[], user_message="hi"
+    )
+
+    context_content = messages[1]["content"]
+    assert "unavailable" in context_content.lower()
+    # A bare zero must never stand in for the missing price.
+    assert "$0.00" not in context_content
+    assert "$0" not in context_content
+
+
+def test_build_chat_messages_orders_history_between_context_and_new_message():
+    from app.routes.chat import build_chat_messages
+
+    history = [
+        {"role": "user", "content": "earlier question", "actions": None, "created_at": "t1"},
+        {"role": "assistant", "content": "earlier answer", "actions": [], "created_at": "t2"},
+    ]
+
+    messages = build_chat_messages(
+        portfolio=_fabricated_portfolio(),
+        watchlist=[],
+        history=history,
+        user_message="follow-up question",
+    )
+
+    # persona, context, then history in order, then exactly one new message.
+    assert messages[0]["role"] == "system"
+    assert messages[1]["role"] == "system"
+    assert messages[2] == {"role": "user", "content": "earlier question"}
+    assert messages[3] == {"role": "assistant", "content": "earlier answer"}
+    assert messages[4] == {"role": "user", "content": "follow-up question"}
+    assert len(messages) == 5
+    # The new message appears exactly once in the whole list.
+    assert sum(1 for m in messages if m["content"] == "follow-up question") == 1
+
+
+def test_build_chat_messages_bounds_history_by_shared_constant():
+    from app.db.chat import MAX_CONTEXT_MESSAGES
+    from app.routes.chat import build_chat_messages
+
+    # build_chat_messages itself does not truncate (the caller already
+    # bounded `history` via list_recent_chat_messages()); this asserts the
+    # constant it relies on for that bound is the shared one, not a second
+    # magic number.
+    assert MAX_CONTEXT_MESSAGES == 20
+
+
+def test_build_chat_messages_on_empty_state_still_includes_cash_balance():
+    from app.routes.chat import build_chat_messages
+
+    empty_portfolio = {"cash_balance": 10000.0, "total_value": 10000.0, "positions": []}
+
+    messages = build_chat_messages(
+        portfolio=empty_portfolio, watchlist=[], history=[], user_message="hi"
+    )
+
+    assert "10000" in messages[1]["content"]
+
+
+# --- Freshness proof — context re-read every turn (Task 2 / CHAT-02, D-15) --
+
+
+class _RecordingLLM:
+    """Stand-in for mock_chat_completion that records the message list it
+    was handed and returns a schema-valid no-action result — recording the
+    *input* to the model is what makes this a test of the context, not of
+    the mock (per 04-02-PLAN.md's discretion table)."""
+
+    def __init__(self) -> None:
+        self.calls: list[list[dict]] = []
+
+    def __call__(self, messages: list[dict]):
+        from app.llm.schemas import ChatCompletionResult
+
+        self.calls.append(messages)
+        return ChatCompletionResult(message="ok", trades=[], watchlist_changes=[])
+
+
+def test_a_trade_between_two_turns_is_visible_in_the_second_recorded_context(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LLM_MOCK", "true")
+    import app.routes.chat as chat_module
+
+    recorder = _RecordingLLM()
+    monkeypatch.setattr(chat_module, "mock_chat_completion", recorder)
+
+    client.post("/api/chat", json={"message": "how am I doing?"})
+    assert len(recorder.calls) == 1
+    first_rendered = "\n".join(m["content"] for m in recorder.calls[0])
+
+    trade_response = client.post(
+        "/api/portfolio/trade", json={"ticker": "NFLX", "side": "buy", "quantity": 2}
+    )
+    assert trade_response.status_code == 200
+
+    client.post("/api/chat", json={"message": "how am I doing now?"})
+    assert len(recorder.calls) == 2
+    second_rendered = "\n".join(m["content"] for m in recorder.calls[1])
+
+    assert "NFLX" not in first_rendered
+    assert "NFLX" in second_rendered
+
+    # The cash figure must have moved between the two recorded contexts.
+    first_cash_line = next(
+        line for line in first_rendered.splitlines() if "cash" in line.lower()
+    )
+    second_cash_line = next(
+        line for line in second_rendered.splitlines() if "cash" in line.lower()
+    )
+    assert first_cash_line != second_cash_line
+
+
+def test_a_watchlist_ticker_added_between_two_turns_is_visible_in_the_second_context(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LLM_MOCK", "true")
+    import app.routes.chat as chat_module
+
+    recorder = _RecordingLLM()
+    monkeypatch.setattr(chat_module, "mock_chat_completion", recorder)
+
+    client.post("/api/chat", json={"message": "what's on my watchlist?"})
+    first_rendered = "\n".join(m["content"] for m in recorder.calls[0])
+
+    add_response = client.post("/api/watchlist", json={"ticker": "PYPL"})
+    assert add_response.status_code == 201
+
+    client.post("/api/chat", json={"message": "what's on my watchlist now?"})
+    second_rendered = "\n".join(m["content"] for m in recorder.calls[1])
+
+    assert "PYPL" not in first_rendered
+    assert "PYPL" in second_rendered
+
+
+def test_fresh_database_chat_request_still_records_starting_cash_balance(client, monkeypatch):
+    monkeypatch.setenv("LLM_MOCK", "true")
+    import app.routes.chat as chat_module
+
+    recorder = _RecordingLLM()
+    monkeypatch.setattr(chat_module, "mock_chat_completion", recorder)
+
+    response = client.post("/api/chat", json={"message": "hi"})
+    assert response.status_code == 200
+
+    rendered = "\n".join(m["content"] for m in recorder.calls[0])
+    assert "10000" in rendered
+
+
+def test_history_never_includes_the_message_currently_being_answered(client, monkeypatch):
+    monkeypatch.setenv("LLM_MOCK", "true")
+    import app.routes.chat as chat_module
+
+    recorder = _RecordingLLM()
+    monkeypatch.setattr(chat_module, "mock_chat_completion", recorder)
+
+    client.post("/api/chat", json={"message": "first turn"})
+    client.post("/api/chat", json={"message": "second turn"})
+
+    second_call_messages = recorder.calls[1]
+    occurrences = sum(1 for m in second_call_messages if m["content"] == "second turn")
+    assert occurrences == 1
+
+    # And the first turn's user text is present exactly once as history.
+    occurrences_first = sum(1 for m in second_call_messages if m["content"] == "first turn")
+    assert occurrences_first == 1
+
+
+def test_no_context_is_cached_on_application_state():
+    import inspect
+    import re
+
+    import app.routes.chat as chat_module
+
+    source = inspect.getsource(chat_module)
+    pattern = re.compile(r"app\.state\.(chat|context|prompt)")
+    assert not pattern.search(source)
