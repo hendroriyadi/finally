@@ -2,9 +2,25 @@
 
 from __future__ import annotations
 
-from app.db.watchlist import add_watchlist_ticker, count_watchlist
+import pytest
+from fastapi import HTTPException
+
+from app.db.init import init_db
+from app.db.watchlist import (
+    WatchlistCapReachedError,
+    add_watchlist_ticker,
+    count_watchlist,
+    list_watchlist,
+)
 from app.market.seed_prices import SEED_PRICES
-from app.routes.watchlist import MAX_WATCHLIST_SIZE
+from app.routes.watchlist import (
+    MAX_WATCHLIST_SIZE,
+    DuplicateTickerError,
+    MarketSourceSyncError,
+    TickerNotOnWatchlistError,
+    apply_watchlist_add,
+    apply_watchlist_remove,
+)
 
 
 class _SpyMarketSource:
@@ -180,3 +196,127 @@ def test_remove_ticker_exceeding_max_length_returns_422_before_any_query(client)
     response = client.delete("/api/watchlist/DROP-TABLE-WATCHLIST-TOO-LONG")
     assert response.status_code == 422
     assert spy.removed == []
+
+
+# --- Plan 04-03 Task 1: helper-level tests for the extracted add/remove -----
+#
+# These exercise apply_watchlist_add/apply_watchlist_remove directly, below
+# the HTTP layer, proving the persist-then-track-then-compensate sequence
+# behaves correctly for the chat caller too — which never goes through a
+# route handler and so would not be covered by any test above.
+
+
+class _RecordingSource:
+    """Standalone market-source stand-in (no real source to wrap): records
+    what it was told to track, and can be configured to raise on either
+    call to exercise the compensation branches."""
+
+    def __init__(self, *, fail_add: bool = False, fail_remove: bool = False) -> None:
+        self.added: list[str] = []
+        self.removed: list[str] = []
+        self._fail_add = fail_add
+        self._fail_remove = fail_remove
+
+    async def add_ticker(self, ticker: str) -> None:
+        if self._fail_add:
+            raise RuntimeError("simulated add_ticker failure")
+        self.added.append(ticker)
+
+    async def remove_ticker(self, ticker: str) -> None:
+        if self._fail_remove:
+            raise RuntimeError("simulated remove_ticker failure")
+        self.removed.append(ticker)
+
+
+async def _tickers() -> list[str]:
+    return [row["ticker"] for row in await list_watchlist()]
+
+
+@pytest.mark.asyncio
+async def test_apply_add_inserts_row_and_starts_tracking(temp_db):
+    await init_db()
+    source = _RecordingSource()
+
+    created = await apply_watchlist_add("PYPL", source)
+
+    assert created["ticker"] == "PYPL"
+    assert "PYPL" in await _tickers()
+    assert source.added == ["PYPL"]
+
+
+@pytest.mark.asyncio
+async def test_apply_add_duplicate_raises_and_never_calls_source(temp_db):
+    await init_db()
+    source = _RecordingSource()
+
+    with pytest.raises(DuplicateTickerError) as exc_info:
+        # AAPL is one of the seeded default tickers.
+        await apply_watchlist_add("AAPL", source)
+
+    # The extraction's whole point: the chat caller must never have to
+    # unwrap a web-framework error type to build a chat message.
+    assert not isinstance(exc_info.value, HTTPException)
+    assert source.added == []
+
+
+@pytest.mark.asyncio
+async def test_apply_add_at_cap_raises_cap_error_and_never_calls_source(temp_db):
+    await init_db()
+    source = _RecordingSource()
+
+    with pytest.raises(WatchlistCapReachedError) as exc_info:
+        await apply_watchlist_add("PYPL", source, max_size=1)
+
+    assert not isinstance(exc_info.value, HTTPException)
+    assert source.added == []
+    assert "PYPL" not in await _tickers()
+
+
+@pytest.mark.asyncio
+async def test_apply_add_compensates_when_starting_the_feed_fails(temp_db):
+    await init_db()
+    source = _RecordingSource(fail_add=True)
+
+    with pytest.raises(MarketSourceSyncError) as exc_info:
+        await apply_watchlist_add("PYPL", source)
+
+    assert not isinstance(exc_info.value, HTTPException)
+    # Asserting on the stored list, not just the exception: without the
+    # compensating delete this passes anyway, which is the bug being guarded.
+    assert "PYPL" not in await _tickers()
+
+
+@pytest.mark.asyncio
+async def test_apply_remove_deletes_row_and_stops_tracking(temp_db):
+    await init_db()
+    source = _RecordingSource()
+
+    await apply_watchlist_remove("AAPL", source)
+
+    assert "AAPL" not in await _tickers()
+    assert source.removed == ["AAPL"]
+
+
+@pytest.mark.asyncio
+async def test_apply_remove_unknown_raises_and_never_calls_source(temp_db):
+    await init_db()
+    source = _RecordingSource()
+
+    with pytest.raises(TickerNotOnWatchlistError) as exc_info:
+        await apply_watchlist_remove("ZZZZ", source)
+
+    assert not isinstance(exc_info.value, HTTPException)
+    assert source.removed == []
+
+
+@pytest.mark.asyncio
+async def test_apply_remove_compensates_when_stopping_the_feed_fails(temp_db):
+    await init_db()
+    source = _RecordingSource(fail_remove=True)
+
+    with pytest.raises(MarketSourceSyncError) as exc_info:
+        await apply_watchlist_remove("AAPL", source)
+
+    assert not isinstance(exc_info.value, HTTPException)
+    # The row must be back: a failed stop leaves the ticker listed and live.
+    assert "AAPL" in await _tickers()
