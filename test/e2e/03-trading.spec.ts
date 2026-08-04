@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { headerCash, positionsPanel, trade } from "./helpers";
+import { headerCash, positionsPanel, trade, tradeBar } from "./helpers";
 
 test("buying moves cash and creates a position; selling reverses it", async ({ page }) => {
   await page.goto("/");
@@ -28,6 +28,6 @@ test("a buy beyond available cash is rejected and leaves cash unchanged", async 
 
   await trade(page, "AAPL", "100000", "Buy");
 
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(tradeBar(page).getByRole("alert")).toContainText(/./);
   await expect(headerCash(page)).toHaveText(before!);
 });

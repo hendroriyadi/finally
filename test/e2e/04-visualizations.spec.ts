@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { heatmapPanel, pnlPanel, trade, watchlistRow } from "./helpers";
+import { clickLive, heatmapPanel, pnlPanel, trade, watchlistRow } from "./helpers";
 
 test("the heatmap fills once a position exists, and the P&L chart records points", async ({ page }) => {
   await page.goto("/");
@@ -25,7 +25,7 @@ test("the heatmap fills once a position exists, and the P&L chart records points
 test("clicking a watchlist ticker loads it into the detail chart", async ({ page }) => {
   await page.goto("/");
 
-  await watchlistRow(page, "NVDA").click();
+  await clickLive(watchlistRow(page, "NVDA"));
 
   await expect(page.getByRole("heading", { name: "NVDA Price History" })).toBeVisible();
 });

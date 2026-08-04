@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addTickerInput, watchlistPanel } from "./helpers";
+import { addTickerInput, clickLive, watchlistPanel } from "./helpers";
 
 test("a ticker can be added and removed, and the added one streams a price", async ({ page }) => {
   await page.goto("/");
@@ -7,7 +7,7 @@ test("a ticker can be added and removed, and the added one streams a price", asy
   await expect(panel.getByText("AAPL", { exact: true })).toBeVisible();
 
   await addTickerInput(page).fill("PYPL");
-  await panel.getByRole("button", { name: "Add Ticker" }).click();
+  await clickLive(panel.getByRole("button", { name: "Add Ticker" }));
 
   await expect(panel.getByText("PYPL", { exact: true })).toBeVisible();
 
@@ -23,6 +23,6 @@ test("a ticker can be added and removed, and the added one streams a price", asy
     )
     .not.toBe("—");
 
-  await panel.getByRole("button", { name: "Remove PYPL" }).click();
+  await clickLive(panel.getByRole("button", { name: "Remove PYPL" }));
   await expect(panel.getByText("PYPL", { exact: true })).toHaveCount(0);
 });

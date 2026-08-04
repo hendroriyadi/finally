@@ -10,6 +10,9 @@ import { WatchlistRow } from "./WatchlistRow";
 
 const SKELETON_ROW_COUNT = 10;
 
+/** Dispatched by ChatPanel after the assistant changes the watchlist. */
+export const WATCHLIST_CHANGED_EVENT = "finally:watchlist-changed";
+
 interface WatchlistPanelProps {
   selectedTicker: string | null;
   onSelectTicker: (ticker: string | null) => void;
@@ -60,6 +63,27 @@ export function WatchlistPanel({ selectedTicker, onSelectTicker }: WatchlistPane
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch-on-mount is intentionally run once; onSelectTicker is a stable setState setter
+  }, []);
+
+  // The AI copilot mutates the watchlist through its own endpoint, so this
+  // panel's local `items` would otherwise go stale until the next mount —
+  // the row would linger after the assistant removed it, which is exactly
+  // what ROADMAP Phase 4 criterion 4 forbids ("updates the watchlist grid").
+  // A window event rather than a new provider: the two components are in
+  // different subtrees (layout.tsx vs page.tsx) and this is the only value
+  // they share, so a context for one signal would be more machinery than
+  // the problem needs.
+  useEffect(() => {
+    function resync() {
+      fetchWatchlist()
+        .then((tickers) => {
+          setItems(tickers);
+          setError(false);
+        })
+        .catch(() => setError(true));
+    }
+    window.addEventListener(WATCHLIST_CHANGED_EVENT, resync);
+    return () => window.removeEventListener(WATCHLIST_CHANGED_EVENT, resync);
   }, []);
 
   function addItem(item: WatchlistItem) {

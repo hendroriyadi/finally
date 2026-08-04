@@ -6,6 +6,7 @@ import { ApiError, fetchChatHistory, sendChatMessage } from "@/lib/api";
 import type { ChatMessage } from "@/lib/types";
 import { usePortfolioContext } from "@/components/PortfolioProvider";
 import { ChatActionCard } from "@/components/ChatActionCard";
+import { WATCHLIST_CHANGED_EVENT } from "@/components/WatchlistPanel";
 
 const SKELETON_ROW_COUNT = 3;
 // Roughly four lines of the body scale before the textarea scrolls
@@ -116,6 +117,11 @@ export function ChatPanel() {
       setHistoryError(false);
       if (reply.actions.some((a) => a.status === "success")) {
         await refresh();
+      }
+      // The watchlist grid owns its own local state and has no provider to
+      // refresh, so tell it directly when the assistant changed it.
+      if (reply.actions.some((a) => a.kind === "watchlist" && a.status === "success")) {
+        window.dispatchEvent(new Event(WATCHLIST_CHANGED_EVENT));
       }
     } catch (err) {
       // A failed send never rolls back what the person typed — a message
