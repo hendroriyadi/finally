@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 3
 current_phase_name: Portfolio Visualization
 status: executing
-stopped_at: Completed 03-01-PLAN.md (snapshot writer, 30s recorder, GET /api/portfolio/history) — Plan 03-02 (recharts treemap + P&L chart) up next
-last_updated: "2026-08-04T00:00:00.000Z"
+stopped_at: Completed 03-03-PLAN.md (detail chart + click-to-select) — Phase 3 code-complete, code review up next
+last_updated: "2026-08-04T01:00:00.000Z"
 last_activity: 2026-08-04
-last_activity_desc: Completed 03-01-PLAN.md Task 1 and Task 2 (portfolio_snapshots writer + reader, post-trade trigger, 30s recorder)
+last_activity_desc: Completed 03-03-PLAN.md Task 1 and Task 2 (DetailChart, watchlist row selection, default/removal reconciliation)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 11
+  completed_plans: 11
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 3 of 5 (Portfolio Visualization)
-Plan: 1 of 3 in current phase (03-01 complete; 03-02 and 03-03 not started)
-Status: Executing
-Last activity: 2026-08-04 — Completed 03-01-PLAN.md (portfolio_snapshots writer/reader, 30s recorder, GET /api/portfolio/history)
+Plan: 3 of 3 in current phase (all plans complete — code review next)
+Status: Executing (code-complete, pending review/verify)
+Last activity: 2026-08-04 — Completed 03-03-PLAN.md (DetailChart, watchlist click-to-select, default/removal reconciliation)
 
-Progress: [██████░░░░] ~60% (2 of 5 phases fully complete, Phase 3 in progress)
+Progress: [███████░░░] ~70% (2 of 5 phases fully complete, Phase 3 code-complete)
 
 ## Performance Metrics
 
@@ -67,6 +67,8 @@ Progress: [██████░░░░] ~60% (2 of 5 phases fully complete, P
 | Phase 02 P03 | 25min | 2 tasks | 6 files |
 | Phase 2 P4 | 15min | 2 tasks | 3 files |
 | Phase 3 P01 | unknown (resumed after session-limit interruption) | 2 tasks | 6 files |
+| Phase 3 P02 | unknown (continuous) | 3 tasks | 8 files |
+| Phase 3 P03 | unknown (continuous) | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -89,6 +91,10 @@ Recent decisions affecting current work:
 - [Phase 3]: 03-01: portfolio_snapshots' first writer is app/db/snapshots.py (record_portfolio_snapshot/list_snapshots), reusing get_portfolio_state()/value_portfolio() with zero new valuation logic; execute_trade() stays the sole mutator of cash/positions/trades (Phase 4's CHAT-03 contract)
 - [Phase 3]: 03-01: SnapshotRecorder.start() awaits its first snapshot synchronously before spawning the 30s background loop, rather than leaving the first write to the loop's own first iteration — closes a real race where the fire-and-forget first tick could land mid-request under TestClient and corrupt delta-based snapshot-count test assertions; behavior (one point recorded immediately at startup) is unchanged, only the timing guarantee is stronger
 - [Phase 3]: 03-01: GET /api/portfolio/history wraps its response as {"snapshots": [...]} (matches GET /api/watchlist's {"tickers": [...]} convention), oldest-first, capped server-side at MAX_HISTORY_POINTS=500, no client-controlled query parameters
+- [Phase 3]: 03-02: recharts@3.10.1 legitimacy checkpoint re-verified directly against the live npm registry (not just cited from research) before installing -- npm view/npm audit/curl api.npmjs.org all confirmed; pinned exact (no caret), committed lockfile
+- [Phase 3]: 03-02: PortfolioHeatmap and PnLChart both read shared context (PortfolioProvider/PriceStreamProvider) rather than fetching independently, so they can never disagree with PositionsTable; only PnLChart issues a request (polls GET /api/portfolio/history)
+- [Phase 3]: 03-03: MAX_SPARKLINE_POINTS raised 60 -> 300 in useSseStream.ts, one accumulator now serving both the watchlist sparkline and the new full-panel DetailChart; selection state is a plain useState lifted to app/page.tsx (no new context) since both consumers (WatchlistPanel, DetailChart) are direct children of page.tsx
+- [Phase 3]: 03-03: WatchlistRow's hover-only 2px left border was restructured to a permanent 2px border that only changes colour (transparent -> accent on hover/selection), which incidentally fixed a pre-existing hover layout jitter, not just satisfied the plan's no-shift criterion
 
 ### Pending Todos
 
