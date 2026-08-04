@@ -39,8 +39,8 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 
 ### Chat / AI Assistant
 
-- [ ] **CHAT-01**: User can send a chat message and receive a complete structured JSON response (message + executed actions)
-- [ ] **CHAT-02**: AI assistant receives current portfolio context (cash, positions w/ P&L, watchlist w/ live prices, total value) and recent conversation history on each turn
+- [x] **CHAT-01**: User can send a chat message and receive a complete structured JSON response (message + executed actions)
+- [x] **CHAT-02**: AI assistant receives current portfolio context (cash, positions w/ P&L, watchlist w/ live prices, total value) and recent conversation history on each turn
 - [x] **CHAT-03**: AI assistant can execute trades on the user's behalf, routed through the exact same validated trade-execution function used by manual trades — never a separate, less-validated path
 - [ ] **CHAT-04**: AI assistant can add/remove watchlist tickers on the user's behalf
 - [x] **CHAT-05**: Trade and watchlist actions taken by the AI are shown inline in the chat as confirmations (the transparency mitigation for zero-confirmation auto-execution)
@@ -110,8 +110,8 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | WATCH-03 | Phase 1 | Complete |
 | WATCH-04 | Phase 1 | Complete |
 | WATCH-05 | Phase 1 | Complete |
-| CHAT-01 | Phase 4 | Pending |
-| CHAT-02 | Phase 4 | Pending |
+| CHAT-01 | Phase 4 | Complete |
+| CHAT-02 | Phase 4 | Complete |
 | CHAT-03 | Phase 4 | Complete |
 | CHAT-04 | Phase 4 | Pending |
 | CHAT-05 | Phase 4 | Complete |

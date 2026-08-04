@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 4
 current_phase_name: AI Copilot
 status: executing
-stopped_at: Completed 04-01-PLAN.md (AI-driven trade tracer + real LLM client)
-last_updated: "2026-08-04T12:00:57.927Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-08-04T12:14:40.611Z"
 last_activity: 2026-08-04
-last_activity_desc: Phase 3 fully complete (code review + fixes + verification)
+last_activity_desc: Completed 04-01-PLAN.md
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 4 of 5 (AI Copilot)
-Plan: 01 of 4 complete (04-01 AI-driven trade tracer + real LLM client done; 04-02/03/04 remain)
+Plan: 2 of 4 complete (04-01 AI-driven trade tracer + real LLM client done; 04-02/03/04 remain)
 Status: Executing — Wave 1 (04-01) complete
 Last activity: 2026-08-04 — Completed 04-01-PLAN.md
 
-Progress: [████████░░] 80% (3 of 5 phases fully complete, Phase 4 in progress)
+Progress: [█████████░] 87% (3 of 5 phases fully complete, Phase 4 in progress)
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [████████░░] 80% (3 of 5 phases fully complete, Ph
 | Phase 3 P02 | unknown (continuous) | 3 tasks | 8 files |
 | Phase 3 P03 | unknown (continuous) | 2 tasks | 5 files |
 | Phase 4 P01 | 15min | 2 tasks | 10 files |
+| Phase 04-ai-copilot P02 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,9 @@ Recent decisions affecting current work:
 - [Phase 3]: code review found 0 critical/6 warning/5 info; 9 fixed, 2 accepted as documented tradeoffs (timing-based recorder lifecycle tests; a harmless duplicate GET on PnLChart mount). Fixes included restructuring WatchlistRow's clickable region to a sibling <button> instead of nesting the remove button inside a row-level role="button" div (was an ARIA anti-pattern), removing a pre-existing bug in main.py where an intentionally-emptied watchlist silently reset to the default 10 tickers on restart, and adding a Tooltip to PortfolioHeatmap so small cells remain identifiable
 - [Phase 3]: fully verified human_needed, 0 code-level gaps, 4/4 requirements (PORT-06/07/08, UI-02) satisfied; live-browser confirmation deferred per established pattern
 - [Phase ?]: [Phase 4]: 04-01: POST /api/chat tracer proves execute_trade()+record_portfolio_snapshot() reuse end-to-end via LLM_MOCK before the real LiteLLM/Cerebras client (app/llm/client.py) is wired behind the same _get_llm_response() dispatcher; watchlist_changes parsed but deliberately unexecuted (Plan 04-03's scope)
+- [Phase ?]: chat_messages: NULL for a user row's actions, empty JSON array for an assistant row that executed nothing — never collapsed
+- [Phase ?]: History read happens before the new user row is written, so the message being answered never appears in its own history
+- [Phase ?]: build_chat_messages() is pure (portfolio/watchlist/history/user_message args only); POST handler re-reads get_portfolio_state()+value_portfolio()+list_watchlist() fresh every turn, never cached on app.state
 
 ### Pending Todos
 
@@ -134,6 +138,6 @@ Phase 2 verification status is `human_needed`: 0 gaps, 8/8 requirements satisfie
 
 ## Session Continuity
 
-Last session: 2026-08-04T12:00:53.064Z
-Stopped at: Completed 04-01-PLAN.md (AI-driven trade tracer + real LLM client)
+Last session: 2026-08-04T12:14:40.591Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None

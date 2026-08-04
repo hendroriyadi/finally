@@ -114,7 +114,7 @@ Plans:
 Plans:
 
 - [x] 04-01-PLAN.md — Backend tracer: the chat turn, the LLM seam, and an AI-initiated trade through `execute_trade()` (wave 1)
-- [ ] 04-02-PLAN.md — Durable transcript, `GET /api/chat/history`, and the portfolio-grounded prompt re-read every turn (wave 2)
+- [x] 04-02-PLAN.md — Durable transcript, `GET /api/chat/history`, and the portfolio-grounded prompt re-read every turn (wave 2)
 - [ ] 04-03-PLAN.md — Shared watchlist apply helpers and AI-initiated watchlist changes that actually start streaming (wave 3)
 - [ ] 04-04-PLAN.md — The docked, collapsible AI Copilot panel with inline action confirmations (wave 3)
 
