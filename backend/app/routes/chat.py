@@ -18,6 +18,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.db.chat import append_chat_message, list_recent_chat_messages
 from app.db.portfolio import (
     InsufficientCashError,
     InsufficientSharesError,
@@ -63,6 +64,21 @@ class ActionResult(BaseModel):
 class ChatResponse(BaseModel):
     message: str
     actions: list[ActionResult]
+
+
+class ChatMessageOut(BaseModel):
+    role: str
+    content: str
+    # Reusing ActionResult here rather than a looser dict type is what
+    # guarantees a replayed transcript and a live reply are the same shape
+    # to the frontend — one card component, one prop type, no branch on
+    # where the data came from.
+    actions: list[ActionResult] | None
+    created_at: str
+
+
+class ChatHistoryResponse(BaseModel):
+    messages: list[ChatMessageOut]
 
 
 def _is_mock_mode() -> bool:
@@ -166,6 +182,20 @@ def create_chat_router() -> APIRouter:
 
     @router.post("", response_model=ChatResponse)
     async def post_chat(body: ChatRequest, request: Request) -> ChatResponse:
+        # Read history *before* the new user row is written, so the message
+        # currently being answered can never also appear in its own history
+        # (D-04/D-12 ordering).
+        history = await list_recent_chat_messages()
+        logger.debug("chat turn starting with %d prior messages in context", len(history))
+
+        # Written before the model call rather than after: a turn whose
+        # model call fails still leaves a record of what was asked.
+        await append_chat_message(role="user", content=body.message)
+
+        # TODO(Plan 04-02 Task 2): replace this minimal inline list with a
+        # grounded build_chat_messages(...) call carrying live portfolio,
+        # watchlist, and `history` context, already read above in the
+        # correct before-the-write ordering Task 2 will consume.
         messages = [
             {
                 "role": "system",
@@ -179,6 +209,7 @@ def create_chat_router() -> APIRouter:
 
         result = await _get_llm_response(messages)
         if result is None:
+            await append_chat_message(role="assistant", content=LLM_FAILURE_MESSAGE, actions=[])
             return ChatResponse(message=LLM_FAILURE_MESSAGE, actions=[])
 
         actions: list[ActionResult] = []
@@ -188,6 +219,19 @@ def create_chat_router() -> APIRouter:
         # Plan 04-03 owns it. An empty loop body would be a lie about
         # coverage; this is an explicit scope boundary instead.
 
+        # Same reply text and the same action list the response is built
+        # from, so the stored row and the returned body can never disagree.
+        await append_chat_message(
+            role="assistant",
+            content=result.message,
+            actions=[a.model_dump(exclude_none=True) for a in actions],
+        )
+
         return ChatResponse(message=result.message, actions=actions)
+
+    @router.get("/history", response_model=ChatHistoryResponse)
+    async def get_chat_history() -> ChatHistoryResponse:
+        rows = await list_recent_chat_messages()
+        return ChatHistoryResponse(messages=[ChatMessageOut(**row) for row in rows])
 
     return router
