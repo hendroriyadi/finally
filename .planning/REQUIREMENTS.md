@@ -41,11 +41,11 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 
 - [ ] **CHAT-01**: User can send a chat message and receive a complete structured JSON response (message + executed actions)
 - [ ] **CHAT-02**: AI assistant receives current portfolio context (cash, positions w/ P&L, watchlist w/ live prices, total value) and recent conversation history on each turn
-- [ ] **CHAT-03**: AI assistant can execute trades on the user's behalf, routed through the exact same validated trade-execution function used by manual trades — never a separate, less-validated path
+- [x] **CHAT-03**: AI assistant can execute trades on the user's behalf, routed through the exact same validated trade-execution function used by manual trades — never a separate, less-validated path
 - [ ] **CHAT-04**: AI assistant can add/remove watchlist tickers on the user's behalf
-- [ ] **CHAT-05**: Trade and watchlist actions taken by the AI are shown inline in the chat as confirmations (the transparency mitigation for zero-confirmation auto-execution)
-- [ ] **CHAT-06**: Failed AI-initiated trades (e.g. insufficient cash) surface an error the AI can explain to the user in its response, rather than crashing the request
-- [ ] **CHAT-07**: Chat supports a deterministic mock mode (`LLM_MOCK=true`) for testing without calling OpenRouter
+- [x] **CHAT-05**: Trade and watchlist actions taken by the AI are shown inline in the chat as confirmations (the transparency mitigation for zero-confirmation auto-execution)
+- [x] **CHAT-06**: Failed AI-initiated trades (e.g. insufficient cash) surface an error the AI can explain to the user in its response, rather than crashing the request
+- [x] **CHAT-07**: Chat supports a deterministic mock mode (`LLM_MOCK=true`) for testing without calling OpenRouter
 
 ### Frontend
 
@@ -64,7 +64,7 @@ Requirements for initial release. Scope is `planning/PLAN.md` in full — the ma
 ### Testing
 
 - [x] **TEST-01**: Backend unit tests cover portfolio trade execution logic, P&L calculations, and edge cases (insufficient cash/shares, fractional shares)
-- [ ] **TEST-02**: Backend unit tests cover LLM structured-output parsing, including malformed/invalid responses
+- [x] **TEST-02**: Backend unit tests cover LLM structured-output parsing, including malformed/invalid responses
 - [ ] **TEST-03**: Frontend component tests cover price flash animation, watchlist CRUD, portfolio display calculations, and chat message rendering
 - [ ] **TEST-04**: Playwright E2E suite (run with `LLM_MOCK=true`) covers: fresh start, watchlist add/remove, buy/sell flow, portfolio visualization, AI chat with trade execution, and SSE reconnection
 
@@ -112,11 +112,11 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | WATCH-05 | Phase 1 | Complete |
 | CHAT-01 | Phase 4 | Pending |
 | CHAT-02 | Phase 4 | Pending |
-| CHAT-03 | Phase 4 | Pending |
+| CHAT-03 | Phase 4 | Complete |
 | CHAT-04 | Phase 4 | Pending |
-| CHAT-05 | Phase 4 | Pending |
-| CHAT-06 | Phase 4 | Pending |
-| CHAT-07 | Phase 4 | Pending |
+| CHAT-05 | Phase 4 | Complete |
+| CHAT-06 | Phase 4 | Complete |
+| CHAT-07 | Phase 4 | Complete |
 | UI-01 | Phase 1 | Pending |
 | UI-02 | Phase 3 | Pending |
 | UI-03 | Phase 2 | Complete |
@@ -126,7 +126,7 @@ Explicitly excluded per PLAN.md's own design rationale. Documented to prevent sc
 | DEPLOY-02 | Phase 5 | Pending |
 | DEPLOY-03 | Phase 5 | Pending |
 | TEST-01 | Phase 2 | Complete |
-| TEST-02 | Phase 4 | Pending |
+| TEST-02 | Phase 4 | Complete |
 | TEST-03 | Phase 5 | Pending |
 | TEST-04 | Phase 5 | Pending |
 

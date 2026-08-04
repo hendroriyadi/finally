@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 4
 current_phase_name: AI Copilot
 status: executing
-stopped_at: Phase 3 fully complete (code review + fixes + verification, human_needed 0 gaps, 4/4 requirements) — starting Phase 4 (AI Copilot)
-last_updated: "2026-08-04T02:00:00.000Z"
+stopped_at: Completed 04-01-PLAN.md (AI-driven trade tracer + real LLM client)
+last_updated: "2026-08-04T12:00:57.927Z"
 last_activity: 2026-08-04
-last_activity_desc: Phase 3 code review (0 critical/6 warning/5 info, 9 fixed + 2 accepted) and phase verification (human_needed, 0 gaps)
+last_activity_desc: Phase 3 fully complete (code review + fixes + verification)
 progress:
-  total_phases: 5
+  total_phases: 4
   completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 15
+  completed_plans: 12
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 4 of 5 (AI Copilot)
-Plan: not yet planned
-Status: Starting (CONTEXT.md/research/plan not yet written)
-Last activity: 2026-08-04 — Phase 3 fully complete (code review + fixes + verification)
+Plan: 01 of 4 complete (04-01 AI-driven trade tracer + real LLM client done; 04-02/03/04 remain)
+Status: Executing — Wave 1 (04-01) complete
+Last activity: 2026-08-04 — Completed 04-01-PLAN.md
 
-Progress: [████████░░] ~80% (3 of 5 phases fully complete)
+Progress: [████████░░] 80% (3 of 5 phases fully complete, Phase 4 in progress)
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Progress: [████████░░] ~80% (3 of 5 phases fully complete)
 | Phase 3 P01 | unknown (resumed after session-limit interruption) | 2 tasks | 6 files |
 | Phase 3 P02 | unknown (continuous) | 3 tasks | 8 files |
 | Phase 3 P03 | unknown (continuous) | 2 tasks | 5 files |
+| Phase 4 P01 | 15min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,7 @@ Recent decisions affecting current work:
 - [Phase 3]: 03-03: WatchlistRow's hover-only 2px left border was restructured to a permanent 2px border that only changes colour (transparent -> accent on hover/selection), which incidentally fixed a pre-existing hover layout jitter, not just satisfied the plan's no-shift criterion
 - [Phase 3]: code review found 0 critical/6 warning/5 info; 9 fixed, 2 accepted as documented tradeoffs (timing-based recorder lifecycle tests; a harmless duplicate GET on PnLChart mount). Fixes included restructuring WatchlistRow's clickable region to a sibling <button> instead of nesting the remove button inside a row-level role="button" div (was an ARIA anti-pattern), removing a pre-existing bug in main.py where an intentionally-emptied watchlist silently reset to the default 10 tickers on restart, and adding a Tooltip to PortfolioHeatmap so small cells remain identifiable
 - [Phase 3]: fully verified human_needed, 0 code-level gaps, 4/4 requirements (PORT-06/07/08, UI-02) satisfied; live-browser confirmation deferred per established pattern
+- [Phase ?]: [Phase 4]: 04-01: POST /api/chat tracer proves execute_trade()+record_portfolio_snapshot() reuse end-to-end via LLM_MOCK before the real LiteLLM/Cerebras client (app/llm/client.py) is wired behind the same _get_llm_response() dispatcher; watchlist_changes parsed but deliberately unexecuted (Plan 04-03's scope)
 
 ### Pending Todos
 
@@ -132,6 +134,6 @@ Phase 2 verification status is `human_needed`: 0 gaps, 8/8 requirements satisfie
 
 ## Session Continuity
 
-Last session: 2026-08-03T06:52:58.550Z
-Stopped at: Completed 02-04-PLAN.md (positions table + live header) — Phase 2 code-complete
+Last session: 2026-08-04T12:00:53.064Z
+Stopped at: Completed 04-01-PLAN.md (AI-driven trade tracer + real LLM client)
 Resume file: None
