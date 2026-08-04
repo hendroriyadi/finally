@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 2
-current_phase_name: Manual Trading
+current_phase: 3
+current_phase_name: Portfolio Visualization
 status: executing
-stopped_at: Completed 02-04-PLAN.md (positions table + live header) — Phase 2 code-complete
-last_updated: "2026-08-03T06:52:58.562Z"
-last_activity: 2026-08-03
-last_activity_desc: Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
+stopped_at: Completed 03-01-PLAN.md (snapshot writer, 30s recorder, GET /api/portfolio/history) — Plan 03-02 (recharts treemap + P&L chart) up next
+last_updated: "2026-08-04T00:00:00.000Z"
+last_activity: 2026-08-04
+last_activity_desc: Completed 03-01-PLAN.md Task 1 and Task 2 (portfolio_snapshots writer + reader, post-trade trigger, 30s recorder)
 progress:
-  total_phases: 2
+  total_phases: 5
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 9
+  completed_plans: 9
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 
 ## Current Position
 
-Phase: 2 of 5 (Manual Trading)
-Plan: 4 of 4 in current phase
-Status: Ready to execute
-Last activity: 2026-08-03 — Completed 02-02-PLAN.md (TEST-01 money-math and race-safety proof suite)
+Phase: 3 of 5 (Portfolio Visualization)
+Plan: 1 of 3 in current phase (03-01 complete; 03-02 and 03-03 not started)
+Status: Executing
+Last activity: 2026-08-04 — Completed 03-01-PLAN.md (portfolio_snapshots writer/reader, 30s recorder, GET /api/portfolio/history)
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] ~60% (2 of 5 phases fully complete, Phase 3 in progress)
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [██████████] 100%
 | Phase 02 P02 | 20min | 2 tasks | 1 files |
 | Phase 02 P03 | 25min | 2 tasks | 6 files |
 | Phase 2 P4 | 15min | 2 tasks | 3 files |
+| Phase 3 P01 | unknown (resumed after session-limit interruption) | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Recent decisions affecting current work:
 - [Phase 2]: 02-02: TEST-01 proof suite (14 tests) proves execute_trade() exact-value money math and a 20-caller concurrency race under load; the race proof was confirmed real via an uncommitted mutation spot-check that reverted the buy guard to check-then-act and observed the test fail (12/20 fills instead of 1)
 - [Phase ?]: [Phase 2] 02-03: PortfolioProvider derives totalValue in the render body from positions x live SSE prices (falling back to avg_cost when a ticker is absent from the price map), so it moves on every tick with zero extra network requests; poll effect uses inline .then() chains rather than calling the shared async refresh() directly, to satisfy eslint-config-next 16's react-hooks/set-state-in-effect rule
 - [Phase ?]: 02-04: Every price-derived cell (positions table rows, header total) resolves through prices[ticker]?.price ?? server-snapshot ?? null and short-circuits to an em-dash on null, never rendering the server's precomputed unrealized_pnl/change_percent fields directly, so no surface can lag or disagree with the price it sits beside
+- [Phase 3]: 03-01: portfolio_snapshots' first writer is app/db/snapshots.py (record_portfolio_snapshot/list_snapshots), reusing get_portfolio_state()/value_portfolio() with zero new valuation logic; execute_trade() stays the sole mutator of cash/positions/trades (Phase 4's CHAT-03 contract)
+- [Phase 3]: 03-01: SnapshotRecorder.start() awaits its first snapshot synchronously before spawning the 30s background loop, rather than leaving the first write to the loop's own first iteration — closes a real race where the fire-and-forget first tick could land mid-request under TestClient and corrupt delta-based snapshot-count test assertions; behavior (one point recorded immediately at startup) is unchanged, only the timing guarantee is stronger
+- [Phase 3]: 03-01: GET /api/portfolio/history wraps its response as {"snapshots": [...]} (matches GET /api/watchlist's {"tickers": [...]} convention), oldest-first, capped server-side at MAX_HISTORY_POINTS=500, no client-controlled query parameters
 
 ### Pending Todos
 
