@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchWatchlist } from "@/lib/api";
 import type { WatchlistItem } from "@/lib/types";
 import { usePriceStreamContext } from "./PriceStreamProvider";
@@ -28,6 +28,14 @@ export function WatchlistPanel({ selectedTicker, onSelectTicker }: WatchlistPane
   const [error, setError] = useState(false);
   const { prices, history, baselines } = usePriceStreamContext();
 
+  // Guards the one-time default selection below. A ref (not a comparison
+  // against the live `selectedTicker`) is what makes "apply a default
+  // exactly once per mount, and never again" literal — reading the current
+  // selection here would either need it in this effect's dependency list
+  // (re-running the default every time the user picks a different ticker,
+  // fighting them for control) or read a stale closure value.
+  const defaultSelectionAppliedRef = useRef(false);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -36,6 +44,10 @@ export function WatchlistPanel({ selectedTicker, onSelectTicker }: WatchlistPane
         if (!cancelled) {
           setItems(tickers);
           setError(false);
+          if (!defaultSelectionAppliedRef.current && tickers.length > 0) {
+            defaultSelectionAppliedRef.current = true;
+            onSelectTicker(tickers[0].ticker);
+          }
         }
       })
       .catch(() => {
@@ -47,6 +59,7 @@ export function WatchlistPanel({ selectedTicker, onSelectTicker }: WatchlistPane
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch-on-mount is intentionally run once; onSelectTicker is a stable setState setter
   }, []);
 
   function addItem(item: WatchlistItem) {
@@ -54,7 +67,13 @@ export function WatchlistPanel({ selectedTicker, onSelectTicker }: WatchlistPane
   }
 
   function removeItem(ticker: string) {
-    setItems((current) => (current ?? []).filter((item) => item.ticker !== ticker));
+    setItems((current) => {
+      const remaining = (current ?? []).filter((item) => item.ticker !== ticker);
+      if (ticker === selectedTicker) {
+        onSelectTicker(remaining.length > 0 ? remaining[0].ticker : null);
+      }
+      return remaining;
+    });
   }
 
   return (
