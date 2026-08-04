@@ -55,3 +55,13 @@ export interface TradeResult {
   cash_balance: number;
   position: Holding | null;
 }
+
+/**
+ * One point of `GET /api/portfolio/history`. Mirrors Plan 03-01's
+ * `SnapshotOut`. Deliberately not named `PortfolioSnapshot` — that
+ * identifier is already the `GET /api/portfolio` response type above.
+ */
+export interface PortfolioHistoryPoint {
+  total_value: number;
+  recorded_at: string;
+}

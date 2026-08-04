@@ -1,4 +1,4 @@
-import type { PortfolioSnapshot, TradeResult, TradeSide, WatchlistItem } from "./types";
+import type { PortfolioHistoryPoint, PortfolioSnapshot, TradeResult, TradeSide, WatchlistItem } from "./types";
 
 /**
  * Base URL for API requests. Empty string resolves to same-origin relative
@@ -71,6 +71,15 @@ export async function fetchPortfolio(): Promise<PortfolioSnapshot> {
     throw new ApiError(response.status, await parseErrorMessage(response));
   }
   return (await response.json()) as PortfolioSnapshot;
+}
+
+export async function fetchPortfolioHistory(): Promise<PortfolioHistoryPoint[]> {
+  const response = await fetch(`${API_BASE}/api/portfolio/history`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await parseErrorMessage(response));
+  }
+  const body = (await response.json()) as { snapshots: PortfolioHistoryPoint[] };
+  return body.snapshots;
 }
 
 export async function executeTrade(
