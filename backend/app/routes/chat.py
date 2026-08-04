@@ -10,6 +10,7 @@ about which half landed.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Literal
@@ -25,6 +26,7 @@ from app.db.portfolio import (
     execute_trade,
 )
 from app.db.snapshots import record_portfolio_snapshot
+from app.llm.client import chat_completion
 from app.llm.mock import mock_chat_completion
 from app.llm.schemas import ChatCompletionResult, Trade
 from app.routes.watchlist import normalize_ticker
@@ -74,11 +76,12 @@ def _is_mock_mode() -> bool:
 async def _get_llm_response(messages: list[dict]) -> ChatCompletionResult | None:
     if _is_mock_mode():
         return mock_chat_completion(messages)
-    # Task 2 replaces this line with the threaded real-client call. `None`
-    # is already the route's graceful-failure value, so this branch is
-    # functionally complete-but-empty rather than a placeholder that
-    # changes shape later.
-    return None
+    # The thread hop is not stylistic: this handler shares one event loop
+    # with the long-lived price stream, and a blocking network call made
+    # directly on it stops price ticks reaching every connected browser for
+    # the whole model round trip (T-04-04). Mirrors run_db()'s existing
+    # seam for blocking database calls.
+    return await asyncio.to_thread(chat_completion, messages, ChatCompletionResult)
 
 
 async def _execute_trade_action(trade: Trade, request: Request) -> ActionResult:
