@@ -1,6 +1,7 @@
 import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { TradeBar } from "@/components/TradeBar";
 import { PositionsTable } from "@/components/PositionsTable";
+import { PortfolioHeatmap } from "@/components/PortfolioHeatmap";
 import { PnLChart } from "@/components/PnLChart";
 
 export default function Home() {
@@ -13,7 +14,10 @@ export default function Home() {
           <WatchlistPanel />
         </div>
         <div className="flex flex-col gap-6">
-          <PnLChart />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <PortfolioHeatmap />
+            <PnLChart />
+          </div>
         </div>
       </div>
     </main>
