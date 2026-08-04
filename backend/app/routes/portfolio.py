@@ -28,6 +28,7 @@ from app.db.portfolio import (
     get_portfolio_state,
     value_portfolio,
 )
+from app.db.snapshots import list_snapshots, record_portfolio_snapshot
 from app.routes.watchlist import normalize_ticker
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,15 @@ class TradeResponse(BaseModel):
     position: HoldingOut | None
 
 
+class SnapshotOut(BaseModel):
+    total_value: float
+    recorded_at: str
+
+
+class PortfolioHistoryResponse(BaseModel):
+    snapshots: list[SnapshotOut]
+
+
 def create_portfolio_router() -> APIRouter:
     """Create the portfolio router, prefix='/api/portfolio'.
 
@@ -87,6 +97,11 @@ def create_portfolio_router() -> APIRouter:
         state = await get_portfolio_state()
         valued = value_portfolio(state, request.app.state.price_cache)
         return PortfolioResponse(**valued)
+
+    @router.get("/history", response_model=PortfolioHistoryResponse)
+    async def get_portfolio_history() -> PortfolioHistoryResponse:
+        rows = await list_snapshots()
+        return PortfolioHistoryResponse(snapshots=[SnapshotOut(**row) for row in rows])
 
     @router.post("/trade", response_model=TradeResponse)
     async def trade(body: TradeRequest, request: Request) -> TradeResponse:
@@ -119,6 +134,15 @@ def create_portfolio_router() -> APIRouter:
             raise HTTPException(
                 status_code=400, detail=f"Trade rejected for {ticker}: {exc}"
             ) from None
+
+        # The trade has already committed at this point (D-02, D-06). A
+        # failure here must never turn an already-filled trade into an
+        # error response — log and continue, exactly as it would if the
+        # 30-second timer's own iteration failed (T-03-04).
+        try:
+            await record_portfolio_snapshot(price_cache=request.app.state.price_cache)
+        except Exception:
+            logger.exception("record_portfolio_snapshot failed after trade on %s", ticker)
 
         return TradeResponse(**result)
 

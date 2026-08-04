@@ -270,3 +270,78 @@ def test_trade_with_no_cached_price_returns_400_and_writes_nothing(client):
 def test_malformed_trade_body_returns_422_before_the_engine_runs(client, payload):
     response = client.post("/api/portfolio/trade", json=payload)
     assert response.status_code == 422
+
+
+# --- Task 1 (tracer): post-trade snapshot recording + GET /history ---------
+
+
+def _snapshot_count(user_id: str = "default") -> int:
+    """Count `portfolio_snapshots` rows through a brand-new `connect()`, not
+    through the HTTP response — the recorder started by Task 2's lifespan
+    writes one snapshot at startup, so every assertion here must be a
+    *delta* against a pre-request count, never an absolute count."""
+    conn = connect()
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM portfolio_snapshots WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def test_successful_buy_increases_snapshot_count_by_exactly_one(client):
+    before = _snapshot_count()
+
+    response = client.post(
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 1}
+    )
+    assert response.status_code == 200
+
+    after = _snapshot_count()
+    assert after == before + 1
+
+
+def test_rejected_trade_adds_no_snapshot_row(client):
+    before = _snapshot_count()
+
+    response = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "AAPL", "side": "buy", "quantity": 1_000_000},
+    )
+    assert response.status_code == 409
+
+    after = _snapshot_count()
+    assert after == before
+
+
+def test_history_on_fresh_database_returns_empty_list_with_200(client):
+    response = client.get("/api/portfolio/history")
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {"snapshots": []} or (
+        "snapshots" in body and isinstance(body["snapshots"], list)
+    )
+
+
+def test_history_after_two_trades_returns_both_oldest_first(client):
+    before = _snapshot_count()
+
+    client.post("/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 1})
+    client.post("/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 1})
+
+    response = client.get("/api/portfolio/history")
+    assert response.status_code == 200
+    snapshots = response.json()["snapshots"]
+
+    assert len(snapshots) >= before + 2
+    recorded_ats = [s["recorded_at"] for s in snapshots]
+    assert recorded_ats == sorted(recorded_ats)
+
+
+def test_history_total_value_is_a_json_number_not_a_string(client):
+    client.post("/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 1})
+
+    response = client.get("/api/portfolio/history")
+    raw = json.loads(response.text)
+    assert len(raw["snapshots"]) >= 1
+    assert isinstance(raw["snapshots"][0]["total_value"], float)
