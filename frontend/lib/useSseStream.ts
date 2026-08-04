@@ -4,10 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import type { ConnectionStatus, PriceMap } from "./types";
 
 /**
- * Per-ticker sparkline history is capped at this many points so a
- * long-running page tab does not grow memory without bound (T-01-10).
+ * Per-ticker price history is capped at this many points so a long-running
+ * page tab does not grow memory without bound (T-01-10). This one buffer now
+ * feeds two consumers — the 60x20px inline watchlist sparkline and the
+ * full-panel detail chart (Phase 3) — rather than each having its own. At
+ * the stream's roughly 500ms cadence, 300 points is about two and a half
+ * minutes of history.
  */
-export const MAX_SPARKLINE_POINTS = 60;
+export const MAX_SPARKLINE_POINTS = 300;
 
 export interface PriceStreamState {
   status: ConnectionStatus;

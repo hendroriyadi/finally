@@ -9,6 +9,8 @@ interface WatchlistRowProps {
   changePercent?: number;
   points: number[];
   removeControl?: React.ReactNode;
+  selected: boolean;
+  onSelect: () => void;
 }
 
 /**
@@ -16,8 +18,21 @@ interface WatchlistRowProps {
  * progressively-drawn sparkline. Column widths never shift once price/
  * change/sparkline data arrives, because the em-dash and empty-cell
  * fallbacks below occupy the same layout the populated state does.
+ *
+ * The root element doubles as a button (loading `ticker` into the detail
+ * chart) — `role="button"`/`tabIndex`/`onKeyDown` make it operable by
+ * keyboard, and it stays a `<div>` rather than a `<button>` because it
+ * already contains the remove control, itself a `<button>`.
  */
-export function WatchlistRow({ ticker, price, changePercent, points, removeControl }: WatchlistRowProps) {
+export function WatchlistRow({
+  ticker,
+  price,
+  changePercent,
+  points,
+  removeControl,
+  selected,
+  onSelect,
+}: WatchlistRowProps) {
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const previousPriceRef = useRef<number | undefined>(undefined);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,8 +78,28 @@ export function WatchlistRow({ ticker, price, changePercent, points, removeContr
 
   const flashClass = flash === "up" ? "bg-positive/20" : flash === "down" ? "bg-destructive/20" : "";
 
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect();
+    }
+  }
+
+  function stopRowSelect(event: React.SyntheticEvent) {
+    event.stopPropagation();
+  }
+
   return (
-    <div className="group flex h-9 items-center border-b border-edge px-2 hover:border-l-2 hover:border-l-accent hover:bg-panel">
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      className={`group flex h-9 cursor-pointer items-center border-b border-edge border-l-2 px-2 hover:bg-panel ${
+        selected ? "border-l-accent" : "border-l-transparent hover:border-l-accent"
+      }`}
+    >
       <div className="flex-1 text-xs font-semibold leading-tight text-primary">{ticker}</div>
       <div
         className={`w-24 text-right text-base font-semibold leading-tight tabular-nums transition-colors duration-500 ${flashClass}`}
@@ -77,7 +112,13 @@ export function WatchlistRow({ ticker, price, changePercent, points, removeContr
       <div className="flex h-5 w-[60px] items-center justify-end">
         <Sparkline points={points} />
       </div>
-      <div className="flex w-[60px] items-center justify-end">{removeControl}</div>
+      <div
+        className="flex w-[60px] items-center justify-end"
+        onClick={stopRowSelect}
+        onKeyDown={stopRowSelect}
+      >
+        {removeControl}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,11 @@ import { WatchlistRow } from "./WatchlistRow";
 
 const SKELETON_ROW_COUNT = 10;
 
+interface WatchlistPanelProps {
+  selectedTicker: string | null;
+  onSelectTicker: (ticker: string | null) => void;
+}
+
 /**
  * Watchlist grid: owns the fetch-on-mount lifecycle and every grid state
  * (loading skeleton, error, empty, populated, bounded-overflow scroll). Price,
@@ -18,7 +23,7 @@ const SKELETON_ROW_COUNT = 10;
  * concerns, and a ticker present in the stream but not in the watchlist is
  * never rendered.
  */
-export function WatchlistPanel() {
+export function WatchlistPanel({ selectedTicker, onSelectTicker }: WatchlistPanelProps) {
   const [items, setItems] = useState<WatchlistItem[] | null>(null);
   const [error, setError] = useState(false);
   const { prices, history, baselines } = usePriceStreamContext();
@@ -103,6 +108,8 @@ export function WatchlistPanel() {
                 changePercent={changePercent}
                 points={history[item.ticker] ?? []}
                 removeControl={<RemoveTickerButton ticker={item.ticker} onRemoved={removeItem} />}
+                selected={item.ticker === selectedTicker}
+                onSelect={() => onSelectTicker(item.ticker)}
               />
             );
           })
