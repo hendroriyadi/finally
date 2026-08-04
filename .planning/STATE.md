@@ -10,7 +10,7 @@ last_updated: "2026-08-04T12:14:40.611Z"
 last_activity: 2026-08-04
 last_activity_desc: Phase 5 complete — Docker packaging, scripts, component tests, E2E rig (which caught a real shipping bug)
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 5
   total_plans: 19
   completed_plans: 19
