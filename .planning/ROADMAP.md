@@ -109,7 +109,15 @@ Plans:
   4. Asking the assistant to add or remove a watchlist ticker updates the watchlist grid and shows that change inline in the chat transcript
   5. An impossible or malformed AI action (insufficient cash, unparseable model output) produces a graceful explanation in the chat instead of a crash or an unvalidated trade, and running with `LLM_MOCK=true` returns deterministic replies without calling OpenRouter
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+
+- [ ] 04-01-PLAN.md — Backend tracer: the chat turn, the LLM seam, and an AI-initiated trade through `execute_trade()` (wave 1)
+- [ ] 04-02-PLAN.md — Durable transcript, `GET /api/chat/history`, and the portfolio-grounded prompt re-read every turn (wave 2)
+- [ ] 04-03-PLAN.md — Shared watchlist apply helpers and AI-initiated watchlist changes that actually start streaming (wave 3)
+- [ ] 04-04-PLAN.md — The docked, collapsible AI Copilot panel with inline action confirmations (wave 3)
+
 **UI hint**: yes
 
 ### Phase 5: One-Command Ship
@@ -138,7 +146,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Live Market Terminal | 4/4 | Complete (human_needed) | 2026-08-03 |
 | 2. Manual Trading | 4/4 | Complete (human_needed) | 2026-08-03 |
 | 3. Portfolio Visualization | 3/3 | Complete (human_needed) | 2026-08-04 |
-| 4. AI Copilot | 0/TBD | In Progress | - |
+| 4. AI Copilot | 0/4 | In Progress | - |
 | 5. One-Command Ship | 0/TBD | Not started | - |
 
 ## Notes
