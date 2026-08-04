@@ -604,3 +604,155 @@ def test_no_context_is_cached_on_application_state():
     source = inspect.getsource(chat_module)
     pattern = re.compile(r"app\.state\.(chat|context|prompt)")
     assert not pattern.search(source)
+
+
+# --- Plan 04-03 Task 2: AI-initiated watchlist changes ----------------------
+#
+# The load-bearing proof here is that an added ticker actually *streams*, not
+# merely that its row exists — a test that checked only the row would pass
+# against exactly the bug 04-RESEARCH.md's Pitfall 2 describes.
+
+
+def _watchlist_tickers(client) -> list[str]:
+    response = client.get("/api/watchlist")
+    assert response.status_code == 200
+    return [item["ticker"] for item in response.json()["tickers"]]
+
+
+def test_mock_triggered_watchlist_add_returns_200_with_one_success_action(client, monkeypatch):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    response = client.post("/api/chat", json={"message": "add PYPL to my watchlist"})
+
+    assert response.status_code == 200
+    actions = response.json()["actions"]
+    assert len(actions) == 1
+    assert actions[0]["kind"] == "watchlist"
+    assert actions[0]["status"] == "success"
+    assert actions[0]["ticker"] == "PYPL"
+    assert actions[0]["action"] == "add"
+
+
+def test_mock_triggered_watchlist_add_starts_the_price_feed(client, monkeypatch):
+    """Pitfall 2's proof: the row AND the live feed, not just the row."""
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    response = client.post("/api/chat", json={"message": "add PYPL to my watchlist"})
+    assert response.status_code == 200
+
+    assert "PYPL" in _watchlist_tickers(client)
+    # The simulator seeds a price synchronously inside add_ticker(), so this
+    # is available immediately rather than needing a tick to elapse.
+    assert client.app.state.price_cache.get_price("PYPL") is not None
+
+
+def test_mock_triggered_watchlist_remove_deletes_row_and_stops_the_feed(client, monkeypatch):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    response = client.post("/api/chat", json={"message": "remove AAPL from my watchlist"})
+
+    assert response.status_code == 200
+    actions = response.json()["actions"]
+    assert len(actions) == 1
+    assert actions[0]["status"] == "success"
+    assert actions[0]["action"] == "remove"
+    assert "AAPL" not in _watchlist_tickers(client)
+    assert "AAPL" not in client.app.state.market_source.get_tickers()
+
+
+def test_adding_an_already_listed_ticker_returns_200_with_the_forms_error_copy(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    # AAPL is one of the seeded default tickers, so this is a duplicate.
+    response = client.post("/api/chat", json={"message": "add AAPL to my watchlist"})
+
+    assert response.status_code == 200
+    actions = response.json()["actions"]
+    assert len(actions) == 1
+    assert actions[0]["status"] == "error"
+    assert actions[0]["error"] == "Couldn't add AAPL — check the symbol and try again."
+
+
+def test_removing_an_unlisted_ticker_returns_200_with_the_controls_error_copy(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    response = client.post("/api/chat", json={"message": "remove ZZZZ from my watchlist"})
+
+    assert response.status_code == 200
+    actions = response.json()["actions"]
+    assert len(actions) == 1
+    assert actions[0]["status"] == "error"
+    assert actions[0]["error"] == "Couldn't remove ZZZZ — try again."
+
+
+def test_watchlist_action_with_shape_invalid_ticker_returns_200_and_writes_nothing(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    before = _watchlist_tickers(client)
+    # "..." matches the mock's [a-z.]{1,10} class but fails TICKER_PATTERN,
+    # which requires a leading letter.
+    response = client.post("/api/chat", json={"message": "add ... to my watchlist"})
+
+    assert response.status_code == 200
+    actions = response.json()["actions"]
+    assert len(actions) == 1
+    assert actions[0]["status"] == "error"
+    assert _watchlist_tickers(client) == before
+
+
+def test_one_reply_with_a_trade_and_a_watchlist_change_executes_and_reports_both(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    response = client.post(
+        "/api/chat", json={"message": "buy 1 AAPL and add PYPL to my watchlist"}
+    )
+
+    assert response.status_code == 200
+    actions = response.json()["actions"]
+    assert len(actions) == 2
+    kinds = {a["kind"] for a in actions}
+    assert kinds == {"trade", "watchlist"}
+    assert all(a["status"] == "success" for a in actions)
+    # The trade loop runs first, so ordering is trade-then-watchlist.
+    assert actions[0]["kind"] == "trade"
+    assert actions[1]["kind"] == "watchlist"
+
+
+def test_a_watchlist_failure_does_not_prevent_a_trade_in_the_same_reply(client, monkeypatch):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    before_cash = _read_state()["cash_balance"]
+    # AAPL is already listed, so the watchlist half fails while the buy succeeds.
+    response = client.post(
+        "/api/chat", json={"message": "buy 1 AAPL and add AAPL to my watchlist"}
+    )
+
+    assert response.status_code == 200
+    actions = response.json()["actions"]
+    assert len(actions) == 2
+    trade_action = next(a for a in actions if a["kind"] == "trade")
+    watchlist_action = next(a for a in actions if a["kind"] == "watchlist")
+    assert trade_action["status"] == "success"
+    assert watchlist_action["status"] == "error"
+    assert _read_state()["cash_balance"] < before_cash
+
+
+def test_stored_assistant_row_carries_both_action_results(client, monkeypatch):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    client.post("/api/chat", json={"message": "buy 1 AAPL and add PYPL to my watchlist"})
+
+    history = client.get("/api/chat/history").json()["messages"]
+    assistant_rows = [row for row in history if row["role"] == "assistant"]
+    assert assistant_rows, "expected an assistant row to have been stored"
+    stored_actions = assistant_rows[-1]["actions"]
+    assert len(stored_actions) == 2
+    assert {a["kind"] for a in stored_actions} == {"trade", "watchlist"}

@@ -29,11 +29,26 @@ from app.db.portfolio import (
     value_portfolio,
 )
 from app.db.snapshots import record_portfolio_snapshot
+
+# `list_watchlist` is a READ, used only to build the prompt context
+# (Plan 04-02 / CHAT-02). Every watchlist *mutation* goes through the
+# helpers imported from the route module below — this module never imports
+# `add_watchlist_ticker`/`remove_watchlist_ticker`, which is what stops a
+# second copy of the persist-then-track sequence (the one that forgets the
+# market-source call) from appearing here (T-04-20 / 04-RESEARCH Pitfall 2).
 from app.db.watchlist import list_watchlist
 from app.llm.client import chat_completion
 from app.llm.mock import mock_chat_completion
-from app.llm.schemas import ChatCompletionResult, Trade
-from app.routes.watchlist import normalize_ticker
+from app.llm.schemas import ChatCompletionResult, Trade, WatchlistChange
+from app.routes.watchlist import (
+    DuplicateTickerError,
+    MarketSourceSyncError,
+    TickerNotOnWatchlistError,
+    WatchlistCapReachedError,
+    apply_watchlist_add,
+    apply_watchlist_remove,
+    normalize_ticker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +278,58 @@ async def _execute_trade_action(trade: Trade, request: Request) -> ActionResult:
     )
 
 
+async def _execute_watchlist_action(change: WatchlistChange, request: Request) -> ActionResult:
+    # Same reasoning as the trade executor above: normalize_ticker() raises
+    # HTTPException by design, and letting it escape a loop over several
+    # actions would turn one hallucinated symbol into a rejected request for
+    # the whole turn (T-04-03).
+    try:
+        ticker = normalize_ticker(change.ticker)
+    except HTTPException:
+        return _watchlist_error(change.ticker, change.action)
+
+    market_source = request.app.state.market_source
+    try:
+        if change.action == "add":
+            await apply_watchlist_add(ticker, market_source)
+        else:
+            await apply_watchlist_remove(ticker, market_source)
+    except (
+        DuplicateTickerError,
+        WatchlistCapReachedError,
+        TickerNotOnWatchlistError,
+        MarketSourceSyncError,
+    ):
+        return _watchlist_error(ticker, change.action)
+    except Exception:
+        # A failure mode nobody anticipated still becomes one failed action
+        # rather than a failed request (CHAT-06).
+        logger.exception("watchlist %s failed for %s", change.action, ticker)
+        return _watchlist_error(ticker, change.action)
+
+    # Trade-shaped fields stay unset: the frontend renders from `kind`, and a
+    # side or price on a watchlist row would be meaningless data a card might
+    # render.
+    return ActionResult(
+        kind="watchlist", status="success", ticker=ticker, action=change.action
+    )
+
+
+def _watchlist_error(ticker: str, action: str) -> ActionResult:
+    """The two strings the manual UI already shows, character for character
+    (`AddTickerForm.tsx`, `RemoveTickerButton.tsx`) — 04-UI-SPEC.md's copy
+    contract requires a rejection to read identically whether it came from
+    the form or from chat."""
+    message = (
+        f"Couldn't add {ticker} — check the symbol and try again."
+        if action == "add"
+        else f"Couldn't remove {ticker} — try again."
+    )
+    return ActionResult(
+        kind="watchlist", status="error", ticker=ticker, action=action, error=message
+    )
+
+
 def create_chat_router() -> APIRouter:
     """Create the chat router, prefix='/api/chat'."""
     router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -314,12 +381,13 @@ def create_chat_router() -> APIRouter:
             await append_chat_message(role="assistant", content=LLM_FAILURE_MESSAGE, actions=[])
             return ChatResponse(message=LLM_FAILURE_MESSAGE, actions=[])
 
+        # Both loops feed one ordered list, so a reply that does both reports
+        # both; a failure in either loop is already contained to its own entry.
         actions: list[ActionResult] = []
         for trade in result.trades:
             actions.append(await _execute_trade_action(trade, request))
-        # result.watchlist_changes is deliberately unhandled in this task —
-        # Plan 04-03 owns it. An empty loop body would be a lie about
-        # coverage; this is an explicit scope boundary instead.
+        for change in result.watchlist_changes:
+            actions.append(await _execute_watchlist_action(change, request))
 
         # Same reply text and the same action list the response is built
         # from, so the stored row and the returned body can never disagree.
