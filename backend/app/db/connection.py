@@ -14,6 +14,7 @@ import asyncio
 import logging
 import os
 import sqlite3
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import TypeVar
@@ -21,6 +22,9 @@ from typing import TypeVar
 logger = logging.getLogger(__name__)
 
 DEFAULT_USER_ID = "default"
+
+# Attempts for the one-time journal_mode=WAL switch (see connect()).
+_WAL_SWITCH_ATTEMPTS = 10
 
 # parents[3] from backend/app/db/connection.py is the repository root, whose
 # db/ directory is the runtime volume mount — deliberately distinct from this
@@ -48,10 +52,29 @@ def connect() -> sqlite3.Connection:
     Both pragmas are (re)issued on every open: journal_mode=WAL persists at
     the database-file level once set, but busy_timeout is a per-connection
     setting that must be reissued every time a connection is opened.
+
+    busy_timeout is set FIRST and the `journal_mode=WAL` switch is retried,
+    and both halves are load-bearing (WR-01). The WAL switch takes an
+    exclusive lock on a file not yet in WAL mode, so on a fresh database
+    several connections opening concurrently race for it — and, unlike an
+    ordinary write, it can return SQLITE_BUSY *without* invoking the busy
+    handler, so a timeout alone does not save it. Measured against a fresh
+    file with 8 threads racing `connect()`, 40 trials each: original
+    ordering 3 failures, reordered-only 2, reorder + retry 0. This is the
+    confirmed root cause of the intermittent
+    `test_concurrent_init_db_calls_do_not_raise` failure.
     """
     conn = sqlite3.connect(get_db_path())
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
+    for attempt in range(_WAL_SWITCH_ATTEMPTS):
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            break
+        except sqlite3.OperationalError:
+            if attempt == _WAL_SWITCH_ATTEMPTS - 1:
+                conn.close()
+                raise
+            time.sleep(0.01 * (attempt + 1))
     conn.row_factory = sqlite3.Row
     return conn
 

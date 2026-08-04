@@ -77,13 +77,17 @@ export interface ChatActionResult {
   kind: "trade" | "watchlist";
   status: "success" | "error";
   ticker: string;
-  // The backend omits whichever fields don't apply to a given action: a
-  // watchlist entry has no side/quantity/price, a failed trade has no price.
-  side?: "buy" | "sell";
-  action?: "add" | "remove";
-  quantity?: number;
-  price?: number;
-  error?: string;
+  // Fields that don't apply to a given action arrive as an explicit `null`,
+  // not as an absent key — FastAPI serializes the response model's optional
+  // fields rather than omitting them (verified against both POST /api/chat
+  // and GET /api/chat/history). Typing these `| null` rather than `?` is
+  // what makes a `!= null` guard in the consumer correct instead of a
+  // `!== undefined` one that would let a null through to `.toFixed()`.
+  side: "buy" | "sell" | null;
+  action: "add" | "remove" | null;
+  quantity: number | null;
+  price: number | null;
+  error: string | null;
 }
 
 export interface ChatMessage {

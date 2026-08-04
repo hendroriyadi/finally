@@ -56,8 +56,11 @@ export function ChatActionCard({ action }: { action: ChatActionResult }) {
 
 function buildSuccessLabel(action: ChatActionResult): string {
   if (action.kind === "trade") {
-    const qty = action.quantity !== undefined ? formatQuantity(action.quantity) : "";
-    const price = action.price !== undefined ? formatCurrency(action.price) : "";
+    // `!= null` (not `!== undefined`) is deliberate: these arrive as an
+    // explicit null when they don't apply, and a `!== undefined` guard would
+    // pass a null straight into `.toFixed()`.
+    const qty = action.quantity != null ? formatQuantity(action.quantity) : "";
+    const price = action.price != null ? formatCurrency(action.price) : "";
     const verb = action.side === "sell" ? "Sold" : "Bought";
     return `${verb} ${qty} ${action.ticker} at ${price}`;
   }

@@ -16,15 +16,23 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+# Matches AddTickerRequest.ticker's bound on the HTTP-facing side. The
+# executors still route every value through normalize_ticker(), so this is
+# defense in depth rather than the validation itself — but leaving it
+# unbounded made model output the one ticker source in the app with no
+# length limit at its own boundary, which is an asymmetry with no reason
+# behind it (IN-01).
+_TICKER = Field(min_length=1, max_length=10)
+
 
 class Trade(BaseModel):
-    ticker: str
+    ticker: str = _TICKER
     side: Literal["buy", "sell"]
     quantity: float
 
 
 class WatchlistChange(BaseModel):
-    ticker: str
+    ticker: str = _TICKER
     action: Literal["add", "remove"]
 
 

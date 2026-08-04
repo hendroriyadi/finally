@@ -26,6 +26,7 @@ from app.db.watchlist import (
     list_watchlist,
     remove_watchlist_ticker,
 )
+from app.market.interface import MarketDataSource
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def normalize_ticker(raw: str) -> str:
 
 
 async def apply_watchlist_add(
-    ticker: str, market_source, *, max_size: int | None = MAX_WATCHLIST_SIZE
+    ticker: str, market_source: MarketDataSource, *, max_size: int | None = MAX_WATCHLIST_SIZE
 ) -> dict:
     """Add `ticker` to the watchlist and start its live price feed.
 
@@ -118,7 +119,7 @@ async def apply_watchlist_add(
     return created
 
 
-async def apply_watchlist_remove(ticker: str, market_source) -> None:
+async def apply_watchlist_remove(ticker: str, market_source: MarketDataSource) -> None:
     """Remove `ticker` from the watchlist and stop its live price feed.
 
     Mirror image of `apply_watchlist_add`. `ticker` must already be

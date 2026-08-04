@@ -91,6 +91,11 @@ export function ChatPanel() {
     };
     setMessages((current) => [...(current ?? []), userMessage]);
     setDraft("");
+    // WR-03: the textarea grew with the draft; clearing the value does not
+    // shrink it back on its own, so an expanded empty box would remain.
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
     setSendError(null);
     setSending(true);
 
@@ -105,6 +110,10 @@ export function ChatPanel() {
           created_at: new Date().toISOString(),
         },
       ]);
+      // A round trip just succeeded, so a stale history-load failure from
+      // mount is no longer true (CR-01's second half — the render branch
+      // below is the primary fix, this keeps the flag itself honest).
+      setHistoryError(false);
       if (reply.actions.some((a) => a.status === "success")) {
         await refresh();
       }
@@ -116,10 +125,18 @@ export function ChatPanel() {
       // stopped and the user with no explanation.
       if (err instanceof ApiError) {
         console.error("ChatPanel: send failed", err.status, err.message);
+        // WR-04: a 4xx is the server rejecting THIS message, not a
+        // connectivity problem — telling the user to check their connection
+        // would send them to fix something that isn't broken.
+        setSendError(
+          err.status >= 400 && err.status < 500
+            ? "FinAlly couldn't accept that message — try rephrasing it."
+            : SEND_ERROR,
+        );
       } else {
         console.error("ChatPanel: send failed", err);
+        setSendError(SEND_ERROR);
       }
-      setSendError(SEND_ERROR);
     } finally {
       setSending(false);
     }
@@ -174,22 +191,14 @@ export function ChatPanel() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {historyError ? (
-          <div className="text-sm font-normal leading-normal text-destructive">{HISTORY_ERROR}</div>
-        ) : messages === null ? (
-          <div className="flex flex-col gap-2">
-            {Array.from({ length: SKELETON_ROW_COUNT }).map((_, index) => (
-              <div key={index} className="h-10 w-full animate-pulse rounded bg-edge" />
-            ))}
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="py-6">
-            <h3 className="text-xl font-semibold leading-tight">Start chatting with FinAlly</h3>
-            <p className="mt-1 text-sm font-normal leading-normal text-[#8b949e]">
-              Ask about your portfolio, or tell FinAlly to buy, sell, or update your watchlist.
-            </p>
-          </div>
-        ) : (
+        {/* Messages win over `historyError` whenever any exist. Branching on
+            the error first would strand the user permanently: the flag is set
+            once by the mount fetch and a later successful send updates
+            `messages` behind a banner that never clears, so the user would
+            never see their own message or the reply (CR-01). The error is
+            only the right thing to show when there is genuinely nothing
+            else. */}
+        {messages !== null && messages.length > 0 ? (
           <div className="flex flex-col gap-2">
             {messages.map((message, index) => {
               const isUser = message.role === "user";
@@ -218,6 +227,23 @@ export function ChatPanel() {
                 </div>
               );
             })}
+          </div>
+        ) : historyError ? (
+          <div role="alert" className="text-sm font-normal leading-normal text-destructive">
+            {HISTORY_ERROR}
+          </div>
+        ) : messages === null ? (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: SKELETON_ROW_COUNT }).map((_, index) => (
+              <div key={index} className="h-10 w-full animate-pulse rounded bg-edge" />
+            ))}
+          </div>
+        ) : (
+          <div className="py-6">
+            <h3 className="text-xl font-semibold leading-tight">Start chatting with FinAlly</h3>
+            <p className="mt-1 text-sm font-normal leading-normal text-[#8b949e]">
+              Ask about your portfolio, or tell FinAlly to buy, sell, or update your watchlist.
+            </p>
           </div>
         )}
 
