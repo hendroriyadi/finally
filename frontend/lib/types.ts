@@ -65,3 +65,38 @@ export interface PortfolioHistoryPoint {
   total_value: number;
   recorded_at: string;
 }
+
+/**
+ * Chat wire types, mirroring the backend contracts built in Plans 04-01
+ * (`ActionResult`, `ChatResponse`) and 04-02 (`ChatMessageOut`).
+ */
+
+export type ChatRole = "user" | "assistant";
+
+export interface ChatActionResult {
+  kind: "trade" | "watchlist";
+  status: "success" | "error";
+  ticker: string;
+  // The backend omits whichever fields don't apply to a given action: a
+  // watchlist entry has no side/quantity/price, a failed trade has no price.
+  side?: "buy" | "sell";
+  action?: "add" | "remove";
+  quantity?: number;
+  price?: number;
+  error?: string;
+}
+
+export interface ChatMessage {
+  role: ChatRole;
+  content: string;
+  // Nullable here but not on ChatResponse below, and the asymmetry is real:
+  // a stored user row has no actions column value, while a live reply always
+  // carries a list even when it is empty.
+  actions: ChatActionResult[] | null;
+  created_at: string;
+}
+
+export interface ChatResponse {
+  message: string;
+  actions: ChatActionResult[];
+}

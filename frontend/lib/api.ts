@@ -1,4 +1,12 @@
-import type { PortfolioHistoryPoint, PortfolioSnapshot, TradeResult, TradeSide, WatchlistItem } from "./types";
+import type {
+  ChatMessage,
+  ChatResponse,
+  PortfolioHistoryPoint,
+  PortfolioSnapshot,
+  TradeResult,
+  TradeSide,
+  WatchlistItem,
+} from "./types";
 
 /**
  * Base URL for API requests. Empty string resolves to same-origin relative
@@ -80,6 +88,27 @@ export async function fetchPortfolioHistory(): Promise<PortfolioHistoryPoint[]> 
   }
   const body = (await response.json()) as { snapshots: PortfolioHistoryPoint[] };
   return body.snapshots;
+}
+
+export async function fetchChatHistory(): Promise<ChatMessage[]> {
+  const response = await fetch(`${API_BASE}/api/chat/history`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await parseErrorMessage(response));
+  }
+  const body = (await response.json()) as { messages: ChatMessage[] };
+  return body.messages;
+}
+
+export async function sendChatMessage(message: string): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await parseErrorMessage(response));
+  }
+  return (await response.json()) as ChatResponse;
 }
 
 export async function executeTrade(
