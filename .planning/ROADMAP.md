@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Manual Trading** - Buy and sell at live prices with instant, atomically-validated fills and a live positions table
 - [x] **Phase 3: Portfolio Visualization** - Heatmap, P&L-over-time chart, and per-ticker detail chart over the working portfolio
 - [x] **Phase 4: AI Copilot** - Portfolio-aware chat assistant that executes trades and watchlist changes through the same validated path
-- [ ] **Phase 5: One-Command Ship** - Single Docker container on port 8000, persistent volume, start/stop scripts, and the full test suite
+- [x] **Phase 5: One-Command Ship** - Single Docker container on port 8000, persistent volume, start/stop scripts, and the full test suite
 
 ## Phase Details
 
@@ -154,7 +154,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Manual Trading | 4/4 | Complete (human_needed) | 2026-08-03 |
 | 3. Portfolio Visualization | 3/3 | Complete (human_needed) | 2026-08-04 |
 | 4. AI Copilot | 4/4 | Complete (human_needed) | 2026-08-04 |
-| 5. One-Command Ship | 0/4 | In Progress | - |
+| 5. One-Command Ship | 4/4 | Complete (TEST-04 partial) | 2026-08-04 |
 
 ## Notes
 

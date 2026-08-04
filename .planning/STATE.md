@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 5
 current_phase_name: One-Command Ship
-status: executing
-stopped_at: Phase 4 fully complete (code review 1 critical + 7 others, all 8 fixed; verification human_needed, 0 gaps, 9/9 requirements) — starting Phase 5 (One-Command Ship)
+status: complete
+stopped_at: All 5 phases complete. Phase 5 proved DEPLOY-01/02/03 on real containers (2 mutation-checked); TEST-03 delivered (27 tests); TEST-04 partial (rig proven, 3/10 specs).
 last_updated: "2026-08-04T12:14:40.611Z"
 last_activity: 2026-08-04
-last_activity_desc: Phase 4 complete — AI copilot chat, trades and watchlist changes through the validated paths, docked panel
+last_activity_desc: Phase 5 complete — Docker packaging, scripts, component tests, E2E rig (which caught a real shipping bug)
 progress:
   total_phases: 4
-  completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
+  completed_phases: 5
+  total_plans: 19
+  completed_plans: 19
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-01)
 
 **Core value:** A user opens one URL and, with zero setup, sees live-streaming prices, can place trades, and can chat with an AI copilot that actually analyzes their portfolio and executes trades for them.
-**Current focus:** Phase 5 — One-Command Ship
+**Current focus:** Milestone v1.0 complete
 
 ## Current Position
 
-Phase: 5 of 5 (One-Command Ship)
-Plan: not yet planned
-Status: Starting (CONTEXT.md/research/plan not yet written)
-Last activity: 2026-08-04 — Phase 4 fully complete (code review + fixes + verification)
+Phase: 5 of 5 (One-Command Ship) — COMPLETE
+Plan: 4 of 4 complete
+Status: Milestone v1.0 complete
+Last activity: 2026-08-04 — Phase 5 verification
 
-Progress: [████████░░] ~85% (4 of 5 phases fully complete)
+Progress: [██████████] 100% (5 of 5 phases complete)
 
 ## Performance Metrics
 
@@ -137,6 +137,7 @@ Items acknowledged and carried forward from previous milestone close:
 | 2 | verification_deferred_human | /gsd-verify-work 2 |
 | 3 | verification_deferred_human | /gsd-verify-work 3 |
 | 4 | verification_deferred_human | /gsd-verify-work 4 |
+| 5 | partial: TEST-04 E2E 3/10 specs; Windows .ps1 human-check | /gsd-verify-work 5 |
 
 Phase 1 verification status is `human_needed`: 0 code-level gaps, 11/11 requirements satisfied, all logic source- and test-verified, but 5 items (flash animation timing, sparkline fill-in, dark-theme visual rendering, add/remove persistence across refresh+restart, SSE auto-resume) require a live browser session that was not exercised in this unattended run (3 consecutive agent stalls/crashes attempting it). Proceeding to Phase 2 on the basis that Phase 2 builds on the independently-tested persistence layer and API contracts, not on the unverified visual behavior. Run `/gsd-verify-work 1` with a real browser session when convenient.
 
