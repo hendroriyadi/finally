@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 3
-current_phase_name: Portfolio Visualization
+current_phase: 4
+current_phase_name: AI Copilot
 status: executing
-stopped_at: Completed 03-03-PLAN.md (detail chart + click-to-select) — Phase 3 code-complete, code review up next
-last_updated: "2026-08-04T01:00:00.000Z"
+stopped_at: Phase 3 fully complete (code review + fixes + verification, human_needed 0 gaps, 4/4 requirements) — starting Phase 4 (AI Copilot)
+last_updated: "2026-08-04T02:00:00.000Z"
 last_activity: 2026-08-04
-last_activity_desc: Completed 03-03-PLAN.md Task 1 and Task 2 (DetailChart, watchlist row selection, default/removal reconciliation)
+last_activity_desc: Phase 3 code review (0 critical/6 warning/5 info, 9 fixed + 2 accepted) and phase verification (human_needed, 0 gaps)
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
   completed_plans: 11
 ---
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-01)
 
 **Core value:** A user opens one URL and, with zero setup, sees live-streaming prices, can place trades, and can chat with an AI copilot that actually analyzes their portfolio and executes trades for them.
-**Current focus:** Phase 2 — Manual Trading
+**Current focus:** Phase 4 — AI Copilot
 
 ## Current Position
 
-Phase: 3 of 5 (Portfolio Visualization)
-Plan: 3 of 3 in current phase (all plans complete — code review next)
-Status: Executing (code-complete, pending review/verify)
-Last activity: 2026-08-04 — Completed 03-03-PLAN.md (DetailChart, watchlist click-to-select, default/removal reconciliation)
+Phase: 4 of 5 (AI Copilot)
+Plan: not yet planned
+Status: Starting (CONTEXT.md/research/plan not yet written)
+Last activity: 2026-08-04 — Phase 3 fully complete (code review + fixes + verification)
 
-Progress: [███████░░░] ~70% (2 of 5 phases fully complete, Phase 3 code-complete)
+Progress: [████████░░] ~80% (3 of 5 phases fully complete)
 
 ## Performance Metrics
 
@@ -95,6 +95,8 @@ Recent decisions affecting current work:
 - [Phase 3]: 03-02: PortfolioHeatmap and PnLChart both read shared context (PortfolioProvider/PriceStreamProvider) rather than fetching independently, so they can never disagree with PositionsTable; only PnLChart issues a request (polls GET /api/portfolio/history)
 - [Phase 3]: 03-03: MAX_SPARKLINE_POINTS raised 60 -> 300 in useSseStream.ts, one accumulator now serving both the watchlist sparkline and the new full-panel DetailChart; selection state is a plain useState lifted to app/page.tsx (no new context) since both consumers (WatchlistPanel, DetailChart) are direct children of page.tsx
 - [Phase 3]: 03-03: WatchlistRow's hover-only 2px left border was restructured to a permanent 2px border that only changes colour (transparent -> accent on hover/selection), which incidentally fixed a pre-existing hover layout jitter, not just satisfied the plan's no-shift criterion
+- [Phase 3]: code review found 0 critical/6 warning/5 info; 9 fixed, 2 accepted as documented tradeoffs (timing-based recorder lifecycle tests; a harmless duplicate GET on PnLChart mount). Fixes included restructuring WatchlistRow's clickable region to a sibling <button> instead of nesting the remove button inside a row-level role="button" div (was an ARIA anti-pattern), removing a pre-existing bug in main.py where an intentionally-emptied watchlist silently reset to the default 10 tickers on restart, and adding a Tooltip to PortfolioHeatmap so small cells remain identifiable
+- [Phase 3]: fully verified human_needed, 0 code-level gaps, 4/4 requirements (PORT-06/07/08, UI-02) satisfied; live-browser confirmation deferred per established pattern
 
 ### Pending Todos
 
@@ -120,8 +122,11 @@ Items acknowledged and carried forward from previous milestone close:
 |-------|-------|--------|
 | 1 | verification_deferred_human | /gsd-verify-work 1 |
 | 2 | verification_deferred_human | /gsd-verify-work 2 |
+| 3 | verification_deferred_human | /gsd-verify-work 3 |
 
 Phase 1 verification status is `human_needed`: 0 code-level gaps, 11/11 requirements satisfied, all logic source- and test-verified, but 5 items (flash animation timing, sparkline fill-in, dark-theme visual rendering, add/remove persistence across refresh+restart, SSE auto-resume) require a live browser session that was not exercised in this unattended run (3 consecutive agent stalls/crashes attempting it). Proceeding to Phase 2 on the basis that Phase 2 builds on the independently-tested persistence layer and API contracts, not on the unverified visual behavior. Run `/gsd-verify-work 1` with a real browser session when convenient.
+
+Phase 3 verification status is `human_needed`: 0 code-level gaps, 4/4 requirements satisfied, all logic source- and test-verified (143/143 backend tests passing, frontend lint/build clean), but 4 items (treemap proportional sizing/coloring, P&L chart live point accumulation, click-to-select detail chart interaction, full-process restart durability) require a live browser session not exercised in this unattended run. Proceeding to Phase 4 on the basis that it builds on Phase 2's `execute_trade()` contract and Phase 1's price cache, unaffected by whether Phase 3's charts have been eyeballed yet. Run `/gsd-verify-work 3` with a real browser session when convenient.
 
 Phase 2 verification status is `human_needed`: 0 gaps, 8/8 requirements satisfied, 128/128 backend tests passing, both critical code-review findings (CR-01 precision/dust bug, CR-02 missing internal quantity guard) fixed and re-verified. Same live-browser gap as Phase 1 — 5 items (buy/sell click-through, live-updating positions table/header, rejection UX, error-state header) deferred to `/gsd-verify-work 2`. Proceeding to Phase 3 on the basis that it builds on this phase's independently-tested API/data layer.
 

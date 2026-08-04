@@ -85,13 +85,13 @@ Plans:
   3. Clicking a ticker in the watchlist loads it into the larger main detail chart, which keeps updating from the live stream
   4. The P&L chart still shows points recorded before the backend was restarted — portfolio history is durable, not in-memory
 
-**Plans**: 3 plans
+**Plans**: 3/3 plans executed
 
 Plans:
 
-- [ ] 03-01-PLAN.md — Durable portfolio history: snapshot writer, 30s lifespan recorder, post-trade trigger, GET /api/portfolio/history (wave 1)
-- [ ] 03-02-PLAN.md — Recharts adoption, the position heatmap, the portfolio-value chart, and the two-column layout (wave 2)
-- [ ] 03-03-PLAN.md — Click-to-select watchlist rows driving the per-ticker detail chart off the shared SSE accumulator (wave 3)
+- [x] 03-01-PLAN.md — Durable portfolio history: snapshot writer, 30s lifespan recorder, post-trade trigger, GET /api/portfolio/history (wave 1)
+- [x] 03-02-PLAN.md — Recharts adoption, the position heatmap, the portfolio-value chart, and the two-column layout (wave 2)
+- [x] 03-03-PLAN.md — Click-to-select watchlist rows driving the per-ticker detail chart off the shared SSE accumulator (wave 3)
 
 **UI hint**: yes
 
