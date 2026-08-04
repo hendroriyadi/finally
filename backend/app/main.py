@@ -22,6 +22,7 @@ from app.market import PriceCache, create_market_data_source, create_stream_rout
 from app.market.seed_prices import SEED_PRICES
 from app.routes.portfolio import create_portfolio_router
 from app.routes.watchlist import create_watchlist_router
+from app.snapshot_task import SnapshotRecorder
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,13 @@ def create_app() -> FastAPI:
         app.state.price_cache = cache
         app.state.market_source = source
 
+        recorder = SnapshotRecorder(cache)
+        await recorder.start()
+        app.state.snapshot_recorder = recorder
+
         yield
 
+        await recorder.stop()
         await source.stop()
 
     app = FastAPI(title="FinAlly", lifespan=lifespan)
