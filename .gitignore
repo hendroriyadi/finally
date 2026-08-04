@@ -216,3 +216,8 @@ finally.db
 finally.db-shm
 finally.db-wal
 finally.db-journal
+
+# FinAlly (Phase 5)
+backend/static/
+test/artifacts/
+test/node_modules/

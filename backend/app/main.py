@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.db import init_db
 from app.db.watchlist import list_watchlist
@@ -25,6 +27,18 @@ from app.routes.watchlist import create_watchlist_router
 from app.snapshot_task import SnapshotRecorder
 
 logger = logging.getLogger(__name__)
+
+# Resolves to two different places on purpose:
+#   - `backend/static` in a checkout — normally ABSENT, so a bare
+#     `uv run uvicorn app.main:app` serves the API only and does not crash.
+#   - `/app/static` inside the image — PRESENT, because the Dockerfile's
+#     frontend-builder stage copies `frontend/out` there.
+# That second path and the Dockerfile's COPY destination are a matched pair.
+# Change either one alone and the container still starts cleanly, still logs,
+# and serves the frontend nowhere — a silent degradation, not a crash.
+# Resolved from `__file__` rather than the CWD so it does not depend on the
+# working directory uvicorn happens to be launched from.
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
 def create_app() -> FastAPI:
@@ -64,7 +78,15 @@ def create_app() -> FastAPI:
     # Dev-only CORS: the frontend runs on :3000 via `next dev` while the
     # backend runs on :8000, since output: 'export' disables next.config
     # rewrites-based proxying. Exact-origin allowlist, never a wildcard
-    # (T-01-04). Phase 5's single-origin Docker container removes this.
+    # (T-01-04).
+    #
+    # Kept deliberately now that the container serves both surfaces from one
+    # origin: the middleware is inert there (same-origin requests never carry
+    # an Origin the browser checks against this list), while `npm run dev` on
+    # a separate port still needs it. An exact-origin allowlist costs nothing
+    # to leave in place, and deleting it would break the dev workflow every
+    # future contributor uses. If this ever looks unused, widen nothing —
+    # a wildcard here would be a real regression (T-05-05).
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000"],
@@ -81,6 +103,22 @@ def create_app() -> FastAPI:
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    # MUST be the last thing registered on this app (T-05-03). Starlette
+    # matches routes and mounts in declaration order, and a mount at "/"
+    # matches everything — anything registered after it is unreachable, so
+    # adding a route below this line would silently 404 in production while
+    # still passing an import-time check.
+    #
+    # The directory guard is equally load-bearing: StaticFiles defaults to
+    # check_dir=True and raises at CONSTRUCTION time on a missing directory.
+    # Guarding means the constructor is never reached in a checkout without a
+    # built frontend, so there is nothing to suppress and no try/except.
+    if STATIC_DIR.is_dir():
+        app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+        logger.info("Serving static frontend from %s", STATIC_DIR)
+    else:
+        logger.info("No static directory at %s — running API-only", STATIC_DIR)
 
     return app
 

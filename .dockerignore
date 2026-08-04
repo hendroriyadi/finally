@@ -1,0 +1,46 @@
+# Build-context exclusions.
+#
+# TWO PATTERNS THAT MUST NEVER BE ADDED HERE — both break the build:
+#   1. Any blanket markdown pattern (`*.md`, `**/*.md`). backend/pyproject.toml
+#      declares `readme = "README.md"`, so hatchling's wheel build inside the
+#      second `uv sync` needs backend/README.md present in the context.
+#   2. Any lockfile pattern. frontend/package-lock.json feeds `npm ci` and
+#      backend/uv.lock feeds `uv sync --frozen`.
+# If you are here to "shrink the context further", stop and read the above.
+
+# Secrets — never in an image layer (T-05-01).
+.env
+.env.*
+
+# A developer's live database would otherwise be baked into image history
+# (T-05-02). The container's DB lives on the mounted volume instead.
+db/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.db-journal
+
+# Dependency trees and build output — reinstalled/rebuilt inside the image.
+**/node_modules
+**/.venv
+frontend/out
+frontend/.next
+
+# Python/tooling caches.
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+# VCS, tooling, and planning material — none of it is needed at runtime.
+.git
+.gitignore
+.github
+.claude
+.planning
+planning
+test
+scripts
+Dockerfile
+.dockerignore
