@@ -25,8 +25,11 @@ from app.db.portfolio import (
     NoPriceAvailableError,
     TradeRejectedError,
     execute_trade,
+    get_portfolio_state,
+    value_portfolio,
 )
 from app.db.snapshots import record_portfolio_snapshot
+from app.db.watchlist import list_watchlist
 from app.llm.client import chat_completion
 from app.llm.mock import mock_chat_completion
 from app.llm.schemas import ChatCompletionResult, Trade
@@ -38,6 +41,90 @@ logger = logging.getLogger(__name__)
 # not an error state, so it lives beside the other prose this route emits
 # rather than being assembled at the call site.
 LLM_FAILURE_MESSAGE = "I had trouble processing that — could you rephrase?"
+
+# planning/PLAN.md §9's six required behaviours, plus one instruction of
+# this project's own (never invent a figure). Constant across every turn —
+# the volatile portfolio/watchlist snapshot lives in a separate message
+# built fresh per request, never concatenated in here, so "is the context
+# fresh?" is answerable by looking at one string. Deliberately does not
+# restate the response schema in prose: the structured-output request
+# carries the schema to the provider, and a prose restatement here would be
+# a second, weaker copy of the same contract that can drift from the
+# Pydantic models silently.
+SYSTEM_PROMPT = (
+    "You are FinAlly, an AI trading assistant. You analyze portfolio "
+    "composition, concentration risk, and profit and loss. You suggest "
+    "trades with reasoning, and you execute trades when the user asks or "
+    "agrees. You manage the user's watchlist proactively. You are concise "
+    "and data-driven in every response, always grounded in the figures "
+    "given to you in the message that follows this one. You never invent a "
+    "price, a holding, or a balance — if a figure is not in the context you "
+    "were given, say plainly that you do not have it rather than guessing."
+)
+
+_NO_PRICE_MARKER = "unavailable"
+
+
+def _render_context(portfolio: dict, watchlist: list[dict]) -> str:
+    """Render the volatile portfolio + watchlist snapshot as compact,
+    readable lines — not raw JSON. A `None` price-derived field renders the
+    explicit `_NO_PRICE_MARKER` rather than a zero: a zero price would read
+    to the model as a worthless holding and could reasonably provoke a
+    sell."""
+    lines = [
+        f"Cash balance: ${portfolio['cash_balance']:.2f}",
+        f"Total portfolio value: ${portfolio['total_value']:.2f}",
+    ]
+
+    positions = portfolio.get("positions") or []
+    if positions:
+        lines.append("Open holdings:")
+        for pos in positions:
+            price = (
+                f"${pos['current_price']:.2f}" if pos["current_price"] is not None else _NO_PRICE_MARKER
+            )
+            pnl = (
+                f"${pos['unrealized_pnl']:.2f}" if pos["unrealized_pnl"] is not None else _NO_PRICE_MARKER
+            )
+            lines.append(
+                f"  - {pos['ticker']}: {pos['quantity']} shares, avg cost "
+                f"${pos['avg_cost']:.2f}, current price {price}, unrealized P&L {pnl}"
+            )
+    else:
+        lines.append("Open holdings: none")
+
+    if watchlist:
+        lines.append("Watchlist:")
+        for item in watchlist:
+            price = f"${item['price']:.2f}" if item["price"] is not None else _NO_PRICE_MARKER
+            lines.append(f"  - {item['ticker']}: {price}")
+    else:
+        lines.append("Watchlist: empty")
+
+    return "\n".join(lines)
+
+
+def build_chat_messages(
+    *, portfolio: dict, watchlist: list[dict], history: list[dict], user_message: str
+) -> list[dict]:
+    """Pure function — no `await`, no database read, no `request` access.
+    Everything it needs arrives as an argument, which is what makes CHAT-02
+    assertable in one call with no fixture and no network, and what keeps a
+    hidden read from creeping into the prompt path later.
+
+    Returns, in order: the persona message (SYSTEM_PROMPT, constant), the
+    rendered context message (volatile — built fresh from `portfolio` and
+    `watchlist` on every call), one message per `history` entry in its
+    original role order, then the new user message exactly once.
+    """
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": _render_context(portfolio, watchlist)},
+    ]
+    for entry in history:
+        messages.append({"role": entry["role"], "content": entry["content"]})
+    messages.append({"role": "user", "content": user_message})
+    return messages
 
 
 class ChatRequest(BaseModel):
@@ -192,20 +279,35 @@ def create_chat_router() -> APIRouter:
         # model call fails still leaves a record of what was asked.
         await append_chat_message(role="user", content=body.message)
 
-        # TODO(Plan 04-02 Task 2): replace this minimal inline list with a
-        # grounded build_chat_messages(...) call carrying live portfolio,
-        # watchlist, and `history` context, already read above in the
-        # correct before-the-write ordering Task 2 will consume.
-        messages = [
+        # Loaded fresh on every request — never cached on app.state or
+        # anywhere else. Prices move every half second and holdings move on
+        # every trade; a context cached from an earlier turn would show the
+        # model a balance the user has already spent (D-15). Reuses the
+        # exact get_portfolio_state() + value_portfolio() pair the portfolio
+        # route and the snapshot writer both call — no third valuation path.
+        state = await get_portfolio_state()
+        portfolio = value_portfolio(state, request.app.state.price_cache)
+        watchlist_rows = await list_watchlist()
+        watchlist = [
             {
-                "role": "system",
-                "content": (
-                    "You are FinAlly, an AI trading assistant. Be concise and "
-                    "data-driven. Always respond with valid structured JSON."
-                ),
-            },
-            {"role": "user", "content": body.message},
+                "ticker": row["ticker"],
+                "price": request.app.state.price_cache.get_price(row["ticker"]),
+            }
+            for row in watchlist_rows
         ]
+
+        # The history replayed here is user-supplied text and must be
+        # treated as data, not instruction (T-04-11). No mitigation for that
+        # lives in the prompt; every action the model proposes below still
+        # passes the same ticker validation and the same atomic engine
+        # guards a hand-typed request passes, so no phrasing can reach a
+        # mutation the manual path would refuse.
+        messages = build_chat_messages(
+            portfolio=portfolio,
+            watchlist=watchlist,
+            history=history,
+            user_message=body.message,
+        )
 
         result = await _get_llm_response(messages)
         if result is None:

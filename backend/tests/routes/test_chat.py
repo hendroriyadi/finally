@@ -461,7 +461,6 @@ def test_build_chat_messages_orders_history_between_context_and_new_message():
 
 def test_build_chat_messages_bounds_history_by_shared_constant():
     from app.db.chat import MAX_CONTEXT_MESSAGES
-    from app.routes.chat import build_chat_messages
 
     # build_chat_messages itself does not truncate (the caller already
     # bounded `history` via list_recent_chat_messages()); this asserts the
@@ -514,8 +513,12 @@ def test_a_trade_between_two_turns_is_visible_in_the_second_recorded_context(
     assert len(recorder.calls) == 1
     first_rendered = "\n".join(m["content"] for m in recorder.calls[0])
 
+    # AAPL is already on the default watchlist (and thus already present in
+    # any rendered context) — buying it, rather than a not-yet-tracked
+    # ticker, isolates the assertion to the "Open holdings" section moving
+    # from empty to populated, which is what freshness actually claims.
     trade_response = client.post(
-        "/api/portfolio/trade", json={"ticker": "NFLX", "side": "buy", "quantity": 2}
+        "/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 2}
     )
     assert trade_response.status_code == 200
 
@@ -523,8 +526,9 @@ def test_a_trade_between_two_turns_is_visible_in_the_second_recorded_context(
     assert len(recorder.calls) == 2
     second_rendered = "\n".join(m["content"] for m in recorder.calls[1])
 
-    assert "NFLX" not in first_rendered
-    assert "NFLX" in second_rendered
+    assert "Open holdings: none" in first_rendered
+    assert "Open holdings: none" not in second_rendered
+    assert "AAPL: 2.0 shares" in second_rendered
 
     # The cash figure must have moved between the two recorded contexts.
     first_cash_line = next(
