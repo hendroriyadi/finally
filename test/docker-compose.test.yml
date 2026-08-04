@@ -1,0 +1,57 @@
+# E2E rig: the production image plus a Playwright runner, so browser
+# dependencies stay out of the shipped image (planning/PLAN.md §12).
+#
+# No top-level `version:` key — it is obsolete under the versionless Compose
+# Specification and only produces a warning.
+
+services:
+  # NOT named `app`: Chromium's HSTS preload list contains the entire `.app`
+  # gTLD, and a single-label host `app` matches it — so `http://app:8000`
+  # gets force-upgraded to HTTPS and every navigation dies with
+  # ERR_SSL_PROTOCOL_ERROR. Verified the hard way.
+  finally-app:
+    build:
+      # The repository root, with the root Dockerfile: the suite must exercise
+      # the image that actually ships, not a variant built for testing.
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      # D-15: no test may depend on a real LLM call. OPENROUTER_API_KEY is
+      # deliberately never passed here.
+      LLM_MOCK: "true"
+      FINALLY_DB_PATH: /app/db/finally.db
+    # No volume: spec 01 asserts an untouched $10,000 starting balance and
+    # needs a freshly-seeded database on every run.
+    # No published host port either, so a run never collides with a container
+    # a developer left running from scripts/start_mac.sh.
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health', timeout=4).status == 200 else 1)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  playwright:
+    # The image's version segment must match test/package.json's
+    # @playwright/test exactly. A mismatch surfaces at run time as a browser
+    # binary version error that reads like a flaky test rather than a config
+    # bug, so the two are bumped together.
+    image: mcr.microsoft.com/playwright:v1.62.1-noble
+    depends_on:
+      finally-app:
+        condition: service_healthy
+    working_dir: /e2e
+    volumes:
+      - .:/e2e
+    environment:
+      BASE_URL: http://finally-app:8000
+      CI: "true"
+    command: sh -c "npm ci && npx playwright test"

@@ -9,8 +9,16 @@
 # If you are here to "shrink the context further", stop and read the above.
 
 # Secrets — never in an image layer (T-05-01).
-.env
-.env.*
+#
+# `**/` is load-bearing, not belt-and-braces. A root-only `.env*` pattern
+# leaves `frontend/.env.local` in the build context, and Next.js reads it at
+# BUILD time — baking NEXT_PUBLIC_API_URL=http://localhost:8000 into the
+# static bundle. The container then serves a frontend that asks the
+# *browser's* localhost for its API, which works by accident on a developer's
+# machine and fails with ERR_CONNECTION_REFUSED anywhere else. Caught by the
+# E2E suite; invisible to every curl-based check before it.
+**/.env
+**/.env.*
 
 # A developer's live database would otherwise be baked into image history
 # (T-05-02). The container's DB lives on the mounted volume instead.

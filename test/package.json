@@ -1,0 +1,12 @@
+{
+  "name": "finally-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Playwright E2E suite. Runs against the production image under LLM_MOCK=true.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
+  }
+}
