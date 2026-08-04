@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db import init_db
 from app.db.watchlist import list_watchlist
 from app.market import PriceCache, create_market_data_source, create_stream_router
+from app.routes.chat import create_chat_router
 from app.routes.portfolio import create_portfolio_router
 from app.routes.watchlist import create_watchlist_router
 from app.snapshot_task import SnapshotRecorder
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(create_stream_router(cache))
     app.include_router(create_watchlist_router())
     app.include_router(create_portfolio_router())
+    app.include_router(create_chat_router())
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:
