@@ -154,7 +154,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Manual Trading | 4/4 | Complete (human_needed) | 2026-08-03 |
 | 3. Portfolio Visualization | 3/3 | Complete (human_needed) | 2026-08-04 |
 | 4. AI Copilot | 4/4 | Complete (human_needed) | 2026-08-04 |
-| 5. One-Command Ship | 4/4 | Complete (TEST-04 partial) | 2026-08-04 |
+| 5. One-Command Ship | 4/4 | Complete | 2026-08-04 |
 
 ## Notes
 

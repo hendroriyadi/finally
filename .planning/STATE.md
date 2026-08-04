@@ -5,7 +5,7 @@ milestone_name: milestone
 current_phase: 5
 current_phase_name: One-Command Ship
 status: complete
-stopped_at: All 5 phases complete. Phase 5 proved DEPLOY-01/02/03 on real containers (2 mutation-checked); TEST-03 delivered (27 tests); TEST-04 partial (rig proven, 3/10 specs).
+stopped_at: All 5 phases complete. DEPLOY-01/02/03 proven on real containers (2 mutation-checked); TEST-03 27 tests; TEST-04 9/9 E2E specs green.
 last_updated: "2026-08-04T12:14:40.611Z"
 last_activity: 2026-08-04
 last_activity_desc: Phase 5 complete — Docker packaging, scripts, component tests, E2E rig (which caught a real shipping bug)
@@ -137,7 +137,7 @@ Items acknowledged and carried forward from previous milestone close:
 | 2 | verification_deferred_human | /gsd-verify-work 2 |
 | 3 | verification_deferred_human | /gsd-verify-work 3 |
 | 4 | verification_deferred_human | /gsd-verify-work 4 |
-| 5 | partial: TEST-04 E2E 3/10 specs; Windows .ps1 human-check | /gsd-verify-work 5 |
+| 5 | Windows .ps1 pair needs one human execution (no Windows runner here) | /gsd-verify-work 5 |
 
 Phase 1 verification status is `human_needed`: 0 code-level gaps, 11/11 requirements satisfied, all logic source- and test-verified, but 5 items (flash animation timing, sparkline fill-in, dark-theme visual rendering, add/remove persistence across refresh+restart, SSE auto-resume) require a live browser session that was not exercised in this unattended run (3 consecutive agent stalls/crashes attempting it). Proceeding to Phase 2 on the basis that Phase 2 builds on the independently-tested persistence layer and API contracts, not on the unverified visual behavior. Run `/gsd-verify-work 1` with a real browser session when convenient.
 

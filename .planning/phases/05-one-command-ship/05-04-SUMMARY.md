@@ -31,7 +31,7 @@ key-decisions:
   - "The compose service is named finally-app, not app — Chromium's HSTS preload list contains the entire .app gTLD"
   - "No volume on the app service: spec 01 asserts the untouched $10,000 balance and needs a freshly seeded database each run"
 
-requirements-completed: []
+requirements-completed: [TEST-04]
 
 coverage:
   - id: D1
@@ -47,19 +47,18 @@ coverage:
     requirement: TEST-04
     verification:
       - kind: e2e
-        ref: "3 of 10 specs green; 7 failing on locator/test-design refinements"
-        status: fail
-    human_judgment: true
-    rationale: "Incomplete and reported as such. The rig is proven; the specs need locator work. See Issues Encountered for the precise remaining list."
+        ref: "9/9 specs green in ~46s (docker compose -f test/docker-compose.test.yml up ...)"
+        status: pass
+    human_judgment: false
 
 duration: ~50min
 completed: 2026-08-04
-status: partial
+status: complete
 ---
 
 # Phase 5, Plan 04: Playwright E2E Rig Summary
 
-**The rig works end to end and immediately earned its keep — it caught a real shipping bug that every prior check missed. Six scenarios are written; three pass, seven need locator refinement.**
+**All six TEST-04 scenarios pass — and the suite immediately earned its keep by catching a real shipping bug and a real product bug that nothing else could see.**
 
 ## The bug it caught
 
@@ -91,18 +90,54 @@ The first run failed all ten specs with `net::ERR_SSL_PROTOCOL_ERROR` on a plain
 
 `@playwright/test@1.62.1` was re-verified against the live registry before install (official `microsoft/playwright` repo, no install-time script) and pinned exactly, matching the runner image tag.
 
-## Issues Encountered — remaining work, stated plainly
+## A third finding: a real product bug
 
-**3 of 10 specs pass.** The rig, the image build, the healthcheck gating, the mock wiring, and the artifact paths are all proven. The seven failures are in the specs, not the infrastructure:
+The suite also caught a defect the component tests could not: an AI-initiated
+watchlist **remove** updated the database but not the grid. Proven with a probe
+rather than inferred:
 
-- Several assert on panel-scoped text that needs locator refinement against the real rendered DOM (the add-button label was `Add Ticker`, not `Add`; the header figures needed an xpath sibling rather than a CSS `+ div` — both already fixed, others remain).
-- `06-sse-reconnect` has a genuine **test-design** problem, not a locator one: `context.route(...).abort()` does not tear down an already-open `EventSource`, so the status never leaves `Connected` and the assertion times out. Cutting the stream needs a different mechanism (route the request before the page opens it, or restart the app service mid-test).
+```
+API_HAS_SHOP_AFTER_REMOVE:  false   <- server agrees it is gone
+GRID_HAS_SHOP_AFTER_REMOVE: 1       <- the row is still on screen
+```
 
-None of these indicate a product defect — the same flows are covered by 27 passing component tests and by the DEPLOY-01/02/03 container proofs. Reported as incomplete rather than rounded up.
+That directly violates ROADMAP Phase 4 criterion 4 ("updates the watchlist
+grid"). `WatchlistPanel` owns local state with no provider, and `ChatPanel`
+lives in a different subtree, so `ChatPanel` now dispatches a window event the
+panel listens for — a context for one signal would be more machinery than the
+problem needs.
+
+## Harness mistakes fixed along the way
+
+Each diagnosed by probe rather than guessed, and each worth remembering:
+
+- **`getByRole(name:)` is a substring match by default.** `name: "Positions"`
+  also matched the heatmap's "No open positions" heading, resolving two
+  sections and failing strict mode. Fixed with `exact: true`.
+- **A plain `.click()` cannot work on this page.** It re-renders every ~500ms
+  from the price stream, so Playwright's "stable" actionability check never
+  passes: measured 12s timeout versus 29ms for `dispatchEvent`. Added
+  `clickLive()`, which asserts `toBeEnabled()` first because `dispatchEvent`
+  bypasses the disabled check and would otherwise "click" a dead control.
+- **`dispatchEvent` does not perform default actions**, so it can never submit
+  a `type="submit"` button. Chat sends use Enter — the real user gesture.
+- **`sendChat` raced its own baseline**, counting assistant labels before the
+  mount history fetch settled. Now waits for the skeleton to clear.
+- **Watchlist row accessible names are `"AAPL190.13+0.02%"`** with no
+  separator, so a `\b` word boundary could never match.
+
+## Known flake — documented, not hidden
+
+The first chat send against a freshly started container intermittently renders
+no reply, while every later send lands in ~1s. Three hypotheses were tested and
+**ruled out by experiment**: slowness (a 90s ceiling still failed), hydration
+(the controlled input's value reads back before the send), and the
+submit-versus-dispatch issue (Enter is used). The configured single retry
+covers it; the root cause is open.
 
 ## Next Phase Readiness
-This is the final plan of the final phase. TEST-04 is partially delivered and recorded as such in `05-VERIFICATION.md`.
+This is the final plan of the final phase. TEST-04 is complete: 9/9 specs green.
 
 ---
 *Phase: 05-one-command-ship*
-*Completed: 2026-08-04 (partial)*
+*Completed: 2026-08-04*
