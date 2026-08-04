@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchPortfolioHistory } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 import type { PortfolioHistoryPoint } from "@/lib/types";
 import { usePortfolioContext } from "@/components/PortfolioProvider";
 
@@ -14,10 +15,6 @@ export const PNL_POLL_INTERVAL_MS = 15000;
 
 function formatClockTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatCurrency(value: number): string {
-  return `$${value.toFixed(2)}`;
 }
 
 /**
@@ -53,6 +50,11 @@ export function PnLChart() {
         });
     }
 
+    // Fires once on mount, then again shortly after when PortfolioProvider's
+    // own fetch resolves and cashBalance updates from its 0 default to the
+    // real value — a harmless extra GET on every page load, accepted rather
+    // than added complexity to distinguish "provider's initial settle" from
+    // "a real trade changed cash" (both cases legitimately want a refetch).
     load();
     const interval = setInterval(load, PNL_POLL_INTERVAL_MS);
     return () => {

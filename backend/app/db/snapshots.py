@@ -41,7 +41,9 @@ async def record_portfolio_snapshot(*, price_cache, user_id: str = DEFAULT_USER_
 
     snapshot_id = str(uuid.uuid4())
     recorded_at = datetime.now(timezone.utc).isoformat()
-    total_value = float(valued["total_value"])
+    # value_portfolio() already returns total_value as a float (see
+    # app/db/portfolio.py's `"total_value": float(total)`); no re-cast needed.
+    total_value = valued["total_value"]
 
     def _txn(conn: sqlite3.Connection) -> None:
         conn.execute(

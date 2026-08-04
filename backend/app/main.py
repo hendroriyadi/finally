@@ -19,7 +19,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db import init_db
 from app.db.watchlist import list_watchlist
 from app.market import PriceCache, create_market_data_source, create_stream_router
-from app.market.seed_prices import SEED_PRICES
 from app.routes.portfolio import create_portfolio_router
 from app.routes.watchlist import create_watchlist_router
 from app.snapshot_task import SnapshotRecorder
@@ -37,7 +36,14 @@ def create_app() -> FastAPI:
 
         source = create_market_data_source(cache)
         watchlist = await list_watchlist()
-        tickers = [row["ticker"] for row in watchlist] or list(SEED_PRICES.keys())
+        # No `or list(SEED_PRICES.keys())` fallback here: init_db() seeds the
+        # default watchlist synchronously above on first-ever boot, before
+        # this line runs, so an empty result here can only mean the user
+        # deliberately removed every ticker — starting the market source
+        # (and therefore this phase's snapshot valuation) against the full
+        # default list in that case would silently resurrect tickers the
+        # user removed on every restart.
+        tickers = [row["ticker"] for row in watchlist]
         await source.start(tickers)
 
         app.state.price_cache = cache

@@ -11,13 +11,15 @@ only `get_price()`.
 from __future__ import annotations
 
 import asyncio
+import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 import app.snapshot_task as snapshot_task
 from app.db.connection import DEFAULT_USER_ID, connect
 from app.db.init import init_db
-from app.db.snapshots import list_snapshots, record_portfolio_snapshot
+from app.db.snapshots import MAX_HISTORY_POINTS, list_snapshots, record_portfolio_snapshot
 from app.snapshot_task import SnapshotRecorder
 
 
@@ -135,6 +137,39 @@ async def test_list_snapshots_returns_oldest_first(temp_db):
 
     assert len(rows) == 2
     assert rows[0]["recorded_at"] <= rows[1]["recorded_at"]
+
+
+@pytest.mark.asyncio
+async def test_list_snapshots_caps_at_max_history_points_keeping_the_newest_window(temp_db):
+    # Seeds rows directly (bypassing the 30s cadence) so the cap can be
+    # proven without actually recording MAX_HISTORY_POINTS + 50 snapshots
+    # through record_portfolio_snapshot() one at a time.
+    await init_db()
+    total_rows = MAX_HISTORY_POINTS + 50
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    conn = connect()
+    try:
+        for i in range(total_rows):
+            recorded_at = (base + timedelta(seconds=i)).isoformat()
+            conn.execute(
+                "INSERT INTO portfolio_snapshots (id, user_id, total_value, recorded_at) "
+                "VALUES (?, ?, ?, ?)",
+                (str(uuid.uuid4()), DEFAULT_USER_ID, 10000.0 + i, recorded_at),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    rows = await list_snapshots()
+
+    assert len(rows) == MAX_HISTORY_POINTS
+    # The kept window is the newest MAX_HISTORY_POINTS rows (the first 50
+    # inserted are dropped), still returned oldest-first.
+    assert rows[0]["total_value"] == pytest.approx(10000.0 + 50)
+    assert rows[-1]["total_value"] == pytest.approx(10000.0 + total_rows - 1)
+    recorded_ats = [r["recorded_at"] for r in rows]
+    assert recorded_ats == sorted(recorded_ats)
 
 
 # --- SnapshotRecorder lifecycle ---------------------------------------------

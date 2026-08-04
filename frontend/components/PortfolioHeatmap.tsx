@@ -1,6 +1,6 @@
 "use client";
 
-import { ResponsiveContainer, Treemap } from "recharts";
+import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
 import { usePortfolioContext } from "@/components/PortfolioProvider";
 import { usePriceStreamContext } from "@/components/PriceStreamProvider";
 
@@ -21,6 +21,40 @@ interface HeatmapCellProps {
   name?: string;
   pnlPercent?: number;
   maxAbsPnlPercent?: number;
+}
+
+interface HeatmapTooltipPayloadItem {
+  payload?: { name?: string; marketValue?: number; pnlPercent?: number };
+}
+
+// A cell too small for its on-cell label (HeatmapCell's showLabel/showPnl
+// thresholds below) would otherwise expose zero information — no name, no
+// value — with color as the only signal. This tooltip makes every cell's
+// ticker/market value/P&L discoverable on hover regardless of rendered size.
+function HeatmapTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: HeatmapTooltipPayloadItem[];
+}) {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+  const node = payload[0]?.payload;
+  if (!node || node.name === undefined) {
+    return null;
+  }
+  const pnlPercent = node.pnlPercent ?? 0;
+  return (
+    <div className="rounded border border-edge bg-panel px-3 py-2 text-sm">
+      <div className="font-semibold text-primary">{node.name}</div>
+      <div className="tabular-nums">${(node.marketValue ?? 0).toFixed(2)}</div>
+      <div className={`tabular-nums ${pnlPercent > 0 ? "text-positive" : pnlPercent < 0 ? "text-destructive" : ""}`}>
+        {`${pnlPercent >= 0 ? "+" : ""}${pnlPercent.toFixed(2)}%`}
+      </div>
+    </div>
+  );
 }
 
 function HeatmapCell({ x = 0, y = 0, width = 0, height = 0, name = "", pnlPercent = 0, maxAbsPnlPercent = 1 }: HeatmapCellProps) {
@@ -115,7 +149,9 @@ export function PortfolioHeatmap() {
               stroke="none"
               isAnimationActive={false}
               content={<HeatmapCell />}
-            />
+            >
+              <Tooltip content={<HeatmapTooltip />} />
+            </Treemap>
           </ResponsiveContainer>
         )}
       </div>

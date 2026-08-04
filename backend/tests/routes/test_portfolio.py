@@ -314,13 +314,17 @@ def test_rejected_trade_adds_no_snapshot_row(client):
     assert after == before
 
 
-def test_history_on_fresh_database_returns_empty_list_with_200(client):
+def test_history_returns_a_list_shape_with_200(client):
+    # Not literally `{"snapshots": []}`: the `client` fixture's lifespan runs
+    # SnapshotRecorder.start(), which records one snapshot synchronously
+    # before this fixture ever yields, so "fresh database" already has one
+    # row by the time any test body runs. This test proves the response
+    # shape (200, a `snapshots` list); the empty-list case is a frontend
+    # concern (PnLChart's empty state), not reachable through this fixture.
     response = client.get("/api/portfolio/history")
     assert response.status_code == 200
     body = response.json()
-    assert body == {"snapshots": []} or (
-        "snapshots" in body and isinstance(body["snapshots"], list)
-    )
+    assert isinstance(body["snapshots"], list)
 
 
 def test_history_after_two_trades_returns_both_oldest_first(client):

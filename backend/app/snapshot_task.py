@@ -48,6 +48,15 @@ class SnapshotRecorder:
         logger.info("Snapshot recorder started (interval=%.1fs)", self._interval)
 
     async def stop(self) -> None:
+        """Cancels and awaits the loop task, which stops any *future* tick
+        from being scheduled. This does NOT guarantee an in-flight write is
+        aborted: `_tick()` awaits `record_portfolio_snapshot()`, which
+        ultimately runs on a `run_db()`/`asyncio.to_thread` worker thread —
+        cancelling the awaiting coroutine does not interrupt that thread, so
+        a write already dispatched when `stop()` is called can still commit
+        after this returns. In practice that is at most one harmless extra
+        snapshot row, never a correctness issue for cash/positions/trades
+        (this recorder never touches those tables)."""
         if self._task and not self._task.done():
             self._task.cancel()
             try:

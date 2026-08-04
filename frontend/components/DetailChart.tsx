@@ -1,11 +1,8 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { formatCurrency } from "@/lib/format";
 import { usePriceStreamContext } from "@/components/PriceStreamProvider";
-
-function formatCurrency(value: number): string {
-  return `$${value.toFixed(2)}`;
-}
 
 /**
  * Full-width per-ticker price-history panel. Reads the shared per-ticker
