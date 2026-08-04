@@ -231,3 +231,121 @@ def test_same_message_sent_twice_produces_the_same_message_string(client, monkey
 def test_malformed_chat_body_returns_422_before_the_handler_runs(client, payload):
     response = client.post("/api/chat", json=payload)
     assert response.status_code == 422
+
+
+# --- Persistence (Task 1 / CHAT-01) ------------------------------------------
+
+
+def _chat_message_count(user_id: str = "default") -> int:
+    conn = connect()
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM chat_messages WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def _chat_rows(user_id: str = "default") -> list[dict]:
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT role, content, actions, created_at FROM chat_messages "
+            "WHERE user_id = ? ORDER BY created_at",
+            (user_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def test_a_completed_turn_leaves_exactly_two_new_rows(client, monkeypatch):
+    monkeypatch.setenv("LLM_MOCK", "true")
+    before = _chat_message_count()
+
+    response = client.post("/api/chat", json={"message": "buy 10 AAPL"})
+    assert response.status_code == 200
+
+    after = _chat_message_count()
+    assert after == before + 2
+
+
+def test_assistant_row_stored_actions_equal_response_body_actions(client, monkeypatch):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    response = client.post("/api/chat", json={"message": "buy 10 AAPL"})
+    body = response.json()
+
+    rows = _chat_rows()
+    assistant_row = rows[-1]
+    assert assistant_row["role"] == "assistant"
+
+    import json as _json
+
+    from app.routes.chat import ActionResult
+
+    stored_actions = _json.loads(assistant_row["actions"])
+    # The route stores actions via model_dump(exclude_none=True), so
+    # round-trip the response body's actions through the same model + dump
+    # to compare like with like, entry for entry.
+    expected = [ActionResult(**a).model_dump(exclude_none=True) for a in body["actions"]]
+    assert stored_actions == expected
+
+
+def test_a_failed_model_call_still_leaves_both_rows_with_fallback_and_empty_actions(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LLM_MOCK", "false")
+
+    async def _failing(*args, **kwargs):
+        return None
+
+    import app.routes.chat as chat_module
+
+    monkeypatch.setattr(chat_module, "_get_llm_response", _failing)
+
+    response = client.post("/api/chat", json={"message": "hello"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["message"] == chat_module.LLM_FAILURE_MESSAGE
+    assert body["actions"] == []
+
+    rows = _chat_rows()
+    assert rows[-2]["role"] == "user"
+    assert rows[-2]["content"] == "hello"
+    assert rows[-1]["role"] == "assistant"
+    assert rows[-1]["content"] == chat_module.LLM_FAILURE_MESSAGE
+    import json as _json
+
+    assert _json.loads(rows[-1]["actions"]) == []
+
+
+# --- GET /api/chat/history (Task 1 / CHAT-01, D-12) --------------------------
+
+
+def test_history_on_fresh_database_returns_200_with_empty_list(client):
+    response = client.get("/api/chat/history")
+    assert response.status_code == 200
+    assert response.json() == {"messages": []}
+
+
+def test_history_after_a_turn_returns_both_rows_oldest_first_with_actions_as_json_array(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    post_response = client.post("/api/chat", json={"message": "buy 10 AAPL"})
+    assert post_response.status_code == 200
+
+    response = client.get("/api/chat/history")
+    assert response.status_code == 200
+    body = response.json()
+
+    assert len(body["messages"]) == 2
+    assert body["messages"][0]["role"] == "user"
+    assert body["messages"][0]["content"] == "buy 10 AAPL"
+    assert body["messages"][0]["actions"] is None
+    assert body["messages"][1]["role"] == "assistant"
+    # Actions arrive as a JSON array the test can index, not a quoted string.
+    assert isinstance(body["messages"][1]["actions"], list)
+    assert body["messages"][1]["actions"] == post_response.json()["actions"]
