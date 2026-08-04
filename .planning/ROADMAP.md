@@ -134,7 +134,14 @@ Plans:
   4. Frontend component tests pass, covering price flash animation, watchlist CRUD, portfolio display calculations, and chat message rendering
   5. The Playwright E2E suite passes against the running container with `LLM_MOCK=true`, covering fresh start, watchlist add/remove, buy/sell, portfolio visualizations, AI chat trade execution, and SSE reconnection
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+
+- [ ] 05-01-PLAN.md — Docker tracer: multi-stage image, directory-gated static mount, one port serving both surfaces, and the two-lifecycle persistence proof (wave 1)
+- [ ] 05-03-PLAN.md — Vitest + React Testing Library, the price-flash/watchlist-CRUD/positions-math tests, and the CR-01 chat regression (wave 1)
+- [ ] 05-02-PLAN.md — `.env.example` and the four idempotent start/stop scripts, proven by running each twice (wave 2)
+- [ ] 05-04-PLAN.md — Playwright E2E rig over the shipped image: fresh start, watchlist, trading, visualizations, mock-LLM chat, SSE reconnect (wave 3)
 
 ## Progress
 
@@ -147,7 +154,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Manual Trading | 4/4 | Complete (human_needed) | 2026-08-03 |
 | 3. Portfolio Visualization | 3/3 | Complete (human_needed) | 2026-08-04 |
 | 4. AI Copilot | 4/4 | Complete (human_needed) | 2026-08-04 |
-| 5. One-Command Ship | 0/TBD | In Progress | - |
+| 5. One-Command Ship | 0/4 | In Progress | - |
 
 ## Notes
 
