@@ -1,0 +1,163 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { fetchWatchlist } from "@/lib/api";
+import type { WatchlistItem } from "@/lib/types";
+import { usePriceStreamContext } from "./PriceStreamProvider";
+import { AddTickerForm } from "./AddTickerForm";
+import { RemoveTickerButton } from "./RemoveTickerButton";
+import { WatchlistRow } from "./WatchlistRow";
+
+const SKELETON_ROW_COUNT = 10;
+
+/** Dispatched by ChatPanel after the assistant changes the watchlist. */
+export const WATCHLIST_CHANGED_EVENT = "finally:watchlist-changed";
+
+interface WatchlistPanelProps {
+  selectedTicker: string | null;
+  onSelectTicker: (ticker: string | null) => void;
+}
+
+/**
+ * Watchlist grid: owns the fetch-on-mount lifecycle and every grid state
+ * (loading skeleton, error, empty, populated, bounded-overflow scroll). Price,
+ * change %, and sparkline data come from the shared SSE stream context, not a
+ * re-fetch of the watchlist — the REST list and the price stream are separate
+ * concerns, and a ticker present in the stream but not in the watchlist is
+ * never rendered.
+ */
+export function WatchlistPanel({ selectedTicker, onSelectTicker }: WatchlistPanelProps) {
+  const [items, setItems] = useState<WatchlistItem[] | null>(null);
+  const [error, setError] = useState(false);
+  const { prices, history, baselines } = usePriceStreamContext();
+
+  // Guards the one-time default selection below. A ref (not a comparison
+  // against the live `selectedTicker`) is what makes "apply a default
+  // exactly once per mount, and never again" literal — reading the current
+  // selection here would either need it in this effect's dependency list
+  // (re-running the default every time the user picks a different ticker,
+  // fighting them for control) or read a stale closure value.
+  const defaultSelectionAppliedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchWatchlist()
+      .then((tickers) => {
+        if (!cancelled) {
+          setItems(tickers);
+          setError(false);
+          if (!defaultSelectionAppliedRef.current && tickers.length > 0) {
+            defaultSelectionAppliedRef.current = true;
+            onSelectTicker(tickers[0].ticker);
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch-on-mount is intentionally run once; onSelectTicker is a stable setState setter
+  }, []);
+
+  // The AI copilot mutates the watchlist through its own endpoint, so this
+  // panel's local `items` would otherwise go stale until the next mount —
+  // the row would linger after the assistant removed it, which is exactly
+  // what ROADMAP Phase 4 criterion 4 forbids ("updates the watchlist grid").
+  // A window event rather than a new provider: the two components are in
+  // different subtrees (layout.tsx vs page.tsx) and this is the only value
+  // they share, so a context for one signal would be more machinery than
+  // the problem needs.
+  useEffect(() => {
+    function resync() {
+      fetchWatchlist()
+        .then((tickers) => {
+          setItems(tickers);
+          setError(false);
+        })
+        .catch(() => setError(true));
+    }
+    window.addEventListener(WATCHLIST_CHANGED_EVENT, resync);
+    return () => window.removeEventListener(WATCHLIST_CHANGED_EVENT, resync);
+  }, []);
+
+  function addItem(item: WatchlistItem) {
+    setItems((current) => [...(current ?? []), item]);
+  }
+
+  function removeItem(ticker: string) {
+    setItems((current) => {
+      const remaining = (current ?? []).filter((item) => item.ticker !== ticker);
+      if (ticker === selectedTicker) {
+        onSelectTicker(remaining.length > 0 ? remaining[0].ticker : null);
+      }
+      return remaining;
+    });
+  }
+
+  return (
+    <section className="rounded-md border border-edge bg-panel">
+      <div className="border-b border-edge px-4 py-3">
+        <h2 className="text-xl font-semibold leading-tight">Watchlist</h2>
+        <div className="mt-2">
+          <AddTickerForm onAdded={addItem} />
+        </div>
+      </div>
+
+      <div className="flex items-center border-b border-edge px-2 py-2 text-xs font-semibold leading-tight text-[#8b949e]">
+        <div className="flex-1">TICKER</div>
+        <div className="w-24 text-right">PRICE</div>
+        <div className="w-20 text-right">CHG%</div>
+        <div className="w-[60px]" />
+      </div>
+
+      <div className="max-h-[28rem] overflow-y-auto">
+        {error ? (
+          <div className="px-4 py-6 text-sm font-normal leading-normal text-destructive">
+            {"Couldn't load your watchlist — check your connection and reload."}
+          </div>
+        ) : items === null ? (
+          <div>
+            {Array.from({ length: SKELETON_ROW_COUNT }).map((_, index) => (
+              <div key={index} className="flex h-9 items-center border-b border-edge px-2">
+                <div className="h-4 w-32 flex-1 animate-pulse rounded bg-edge" />
+              </div>
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="px-4 py-6">
+            <h3 className="text-xl font-semibold leading-tight">Your watchlist is empty</h3>
+            <p className="mt-1 text-sm font-normal leading-normal text-[#8b949e]">
+              Add a ticker symbol above to start streaming live prices.
+            </p>
+          </div>
+        ) : (
+          items.map((item) => {
+            const baseline = baselines[item.ticker];
+            const price = prices[item.ticker]?.price;
+            const changePercent =
+              baseline !== undefined && price !== undefined ? ((price - baseline) / baseline) * 100 : undefined;
+
+            return (
+              <WatchlistRow
+                key={item.ticker}
+                ticker={item.ticker}
+                price={price}
+                changePercent={changePercent}
+                points={history[item.ticker] ?? []}
+                removeControl={<RemoveTickerButton ticker={item.ticker} onRemoved={removeItem} />}
+                selected={item.ticker === selectedTicker}
+                onSelect={() => onSelectTicker(item.ticker)}
+              />
+            );
+          })
+        )}
+      </div>
+    </section>
+  );
+}

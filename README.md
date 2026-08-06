@@ -4,18 +4,48 @@ A visually stunning AI-powered trading workstation that streams live market data
 
 Built entirely by coding agents as a capstone project for an agentic AI coding course. See [planning/PLAN.md](planning/PLAN.md) for the full spec.
 
+## Quick Start
+
+You need [Docker](https://docs.docker.com/get-docker/) running. Nothing else.
+
+```bash
+./scripts/start_mac.sh      # macOS / Linux
+.\scripts\start_windows.ps1 # Windows PowerShell
+```
+
+Then open **http://localhost:8000**.
+
+The first run builds the image (a few minutes); later runs reuse it. Pass
+`--build` to force a rebuild after pulling new code, and `--open` to launch a
+browser. Running the script twice is harmless.
+
+```bash
+./scripts/stop_mac.sh       # macOS / Linux
+.\scripts\stop_windows.ps1  # Windows PowerShell
+```
+
+Stopping never deletes your data — cash, positions, trade history, watchlist,
+and chat history live in a Docker volume (`finally-data`) and survive
+restarts.
+
+On first run the start script creates `.env` from `.env.example`. The app
+works without any API key; add `OPENROUTER_API_KEY` to enable the AI copilot.
+
 ## Status
 
-🚧 **Under active development.** Only the market data backend is built so far. The API routes, portfolio/trading logic, AI chat, frontend, and Docker packaging described below are planned but not yet implemented.
+**All five phases are built.** Live streaming watchlist, manual trading,
+portfolio visualizations, the AI copilot, and single-container packaging are
+all implemented and tested.
 
-**Done:**
-- ✅ Market data subsystem (`backend/app/market/`) — GBM simulator with correlated moves, Massive (Polygon.io) client, thread-safe price cache, SSE stream endpoint factory. 73 tests passing. See [planning/MARKET_DATA_SUMMARY.md](planning/MARKET_DATA_SUMMARY.md).
+- ✅ **Live Market Terminal** — SSE price streaming, editable watchlist, flash animations, sparklines
+- ✅ **Manual Trading** — atomic buy/sell with race-safe cash and share guards, live positions table
+- ✅ **Portfolio Visualization** — position heatmap, P&L-over-time chart, per-ticker detail chart
+- ✅ **AI Copilot** — portfolio-grounded chat that executes trades and watchlist changes through the same validated code paths the UI uses
+- ✅ **One-Command Ship** — single Docker container on port 8000, persistent volume, start/stop scripts, component and E2E test suites
 
-**Not yet started:**
-- Database schema, portfolio/trade endpoints, watchlist endpoints
-- AI chat integration (LiteLLM → OpenRouter via Cerebras)
-- Frontend (Next.js terminal UI)
-- Dockerfile, start/stop scripts, E2E tests
+See [planning/PLAN.md](planning/PLAN.md) for the full spec and
+[planning/MARKET_DATA_SUMMARY.md](planning/MARKET_DATA_SUMMARY.md) for the
+market data subsystem.
 
 ## Planned Features
 
