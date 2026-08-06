@@ -89,7 +89,14 @@ export async function sendChat(page: Page, message: string) {
   // than as anything resembling a chat bug.
   await expect(chatPanel(page).locator(".animate-pulse")).toHaveCount(0, { timeout: 30_000 });
 
-  const before = await chatPanel(page).getByText("FINALLY").count();
+  // exact:true is load-bearing. Playwright's getByText(string) is a
+  // CASE-INSENSITIVE SUBSTRING match, so a bare "FINALLY" also matches the
+  // empty-state copy "Start chatting with FinAlly". On an empty conversation
+  // that made `before` 1 instead of 0; the send then replaced the empty state
+  // with one assistant label, leaving the count at 1 while the assertion
+  // waited for 2. It passed on retry only because the history was no longer
+  // empty by then — which is exactly what made it look like a flake.
+  const before = await chatPanel(page).getByText("FINALLY", { exact: true }).count();
   await chatInput(page).fill(message);
   // Proof that React has hydrated and owns this input: the controlled value
   // only reads back if the change handler ran. dispatchEvent bypasses
@@ -103,13 +110,7 @@ export async function sendChat(page: Page, message: string) {
   // fire the event and still never submit the form. Enter is both the real
   // user gesture (ChatPanel handles it explicitly) and the reliable one.
   await chatInput(page).press("Enter");
-  // KNOWN FLAKE, and deliberately not papered over: the first chat send
-  // against a freshly started container intermittently never renders a
-  // reply, while every later send lands in ~1s. Ruled out by experiment,
-  // not assumption -- it is NOT slowness (a 90s ceiling still failed), NOT
-  // hydration (the input's controlled value reads back first), and NOT the
-  // submit-vs-dispatch issue (Enter is the real gesture and is used here).
-  // The configured single retry covers it; the root cause is recorded in
-  // 05-04-SUMMARY.md as open.
-  await expect(chatPanel(page).getByText("FINALLY")).toHaveCount(before + 1, { timeout: 30_000 });
+  await expect(chatPanel(page).getByText("FINALLY", { exact: true })).toHaveCount(before + 1, {
+    timeout: 30_000,
+  });
 }

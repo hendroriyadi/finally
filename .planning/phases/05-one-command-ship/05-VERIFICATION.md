@@ -66,12 +66,14 @@ That is now the only outstanding human check.
 
 ## Gaps Summary
 
-**No gaps.** All five success criteria are proven, four of them against real running containers. One known flake is documented rather than hidden: the first chat send against a freshly started container occasionally renders no reply (later sends take ~1s); slowness, hydration, and submit-vs-dispatch were each ruled out by experiment, and the configured single retry covers it.
+**No gaps.** All five success criteria are proven, four of them against real running containers, and the E2E suite passes **10/10 with retries disabled**.
+
+The item previously recorded here as a "known flake" was a misdiagnosis, corrected: it was a deterministic assertion bug in the test helper (Playwright's `getByText` substring matching colliding with the empty-state copy "Start chatting with FinAlly"), which the configured retry had been masking. Root cause found by instrumenting the request — the server returned `200 OK` throughout. See `05-04-SUMMARY.md`.
 
 ## Verification Metadata
 
 **Approach:** Goal-backward from ROADMAP Phase 5's five success criteria, executed directly by the orchestrator (this session's established pattern after repeated subagent session-limit failures).
-**Automated checks:** backend `pytest -q` → 216 passed; `ruff check` clean; frontend `npx vitest run` → 27 passed; `npm run lint` clean; `npm run build` static export completes; `docker build` + container curl proofs; `test/verify-persistence.sh` → 4/4 dimensions; start/stop idempotence assertions; E2E compose run → 9/9 green.
+**Automated checks:** backend `pytest -q` → 216 passed; `ruff check` clean; frontend `npx vitest run` → 27 passed; `npm run lint` clean; `npm run build` static export completes; `docker build` + container curl proofs; `test/verify-persistence.sh` → 4/4 dimensions; start/stop idempotence assertions; E2E compose run → 10/10 green with retries disabled, twice.
 **Mutation checks performed:** 3 (persistence path, WatchlistRow flash-restart, ChatPanel CR-01).
 **Human checks required:** 1 (the Windows script pair).
 

@@ -126,14 +126,43 @@ Each diagnosed by probe rather than guessed, and each worth remembering:
 - **Watchlist row accessible names are `"AAPL190.13+0.02%"`** with no
   separator, so a `\b` word boundary could never match.
 
-## Known flake — documented, not hidden
+## The "flake" that was not a flake
 
-The first chat send against a freshly started container intermittently renders
-no reply, while every later send lands in ~1s. Three hypotheses were tested and
-**ruled out by experiment**: slowness (a 90s ceiling still failed), hydration
-(the controlled input's value reads back before the send), and the
-submit-versus-dispatch issue (Enter is used). The configured single retry
-covers it; the root cause is open.
+The last failing test was recorded, in an earlier pass, as a known flake with an
+open root cause. That was wrong, and the way it was wrong is the most useful
+thing in this summary.
+
+**It was deterministic.** The first chat test failed on attempt 1 in *every*
+full-suite run and passed on retry — four for four. The configured retry turned
+a 100%-reproducible assertion bug into something that looked probabilistic, and
+"passes on retry" was accepted as good enough.
+
+The actual cause, found by instrumenting the request rather than theorising:
+the server was never involved. `POST /api/chat` returned `200 OK` with a
+successful trade every time. The bug was in the test helper:
+
+```ts
+chatPanel(page).getByText("FINALLY")        // case-insensitive SUBSTRING
+```
+
+`getByText(string)` matches case-insensitively on substrings, so `"FINALLY"`
+also matched the empty-state copy **"Start chatting with FinAlly"**. On an empty
+conversation the baseline count was therefore 1, not 0. Sending a message
+*replaced* the empty state with one assistant label — so the count stayed at 1
+while the assertion waited for 2. On retry the conversation was no longer empty,
+the empty state was gone, and the arithmetic happened to work out.
+
+Fixed with `{ exact: true }`. The suite now passes **10/10 with retries
+disabled**, twice, in 14–22s — and it is faster precisely because nothing is
+burning 30s against a timeout any more.
+
+This is the second time in this plan that Playwright's default substring
+matching caused a failure that looked like something else (the first was
+`getByRole(name:)` matching two panels). Both are now `exact: true`.
+
+`playwright.config.ts` keeps one CI retry for genuine infrastructure noise, but
+now carries a comment saying a retry-only pass is a bug report rather than a
+pass — which is the check that would have caught this immediately.
 
 ## Next Phase Readiness
 This is the final plan of the final phase. TEST-04 is complete: 9/9 specs green.
